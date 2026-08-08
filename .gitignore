@@ -1,0 +1,42 @@
+# Build outputs
+bin/
+obj/
+out/
+dist/
+build/
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs and diagnostics
+*.log
+TestResults/
+coverage/
+*.trx
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+secrets.json
+
+# Node and frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker
+docker-compose.override.yml
+
+# OS files
+.DS_Store
+Thumbs.db

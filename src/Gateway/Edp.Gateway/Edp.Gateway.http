@@ -1,0 +1,22 @@
+@Edp.Gateway_HostAddress = http://localhost:5200
+
+GET {{Edp.Gateway_HostAddress}}/api/v1/gateway/info
+Accept: application/json
+X-Correlation-ID: local-dev-request
+
+###
+
+GET {{Edp.Gateway_HostAddress}}/health/ready
+Accept: application/json
+
+###
+
+GET {{Edp.Gateway_HostAddress}}/bff/auth/user
+Accept: application/json
+
+###
+
+GET {{Edp.Gateway_HostAddress}}/bff/auth/login
+Accept: text/html
+
+###

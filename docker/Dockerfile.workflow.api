@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY ../src/Services/Workflow/Edp.Workflow.Api/Edp.Workflow.Api.csproj ./
+RUN dotnet restore "Edp.Workflow.Api.csproj"
+COPY ../src/Services/Workflow/Edp.Workflow.Api/. ./
+RUN dotnet publish "Edp.Workflow.Api.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Edp.Workflow.Api.dll"]

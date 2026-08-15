@@ -47,9 +47,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddGatewaySecurity(this IServiceCollection services, IConfiguration configuration)
     {
-        var gatewayOptions = new GatewayOptions();
-        configuration.GetSection(GatewayOptions.SectionName).Bind(gatewayOptions);
-        var entraIdOptions = gatewayOptions.EntraId;
+        var gatewayOptions = configuration.GetSection(GatewayOptions.SectionName).Get<GatewayOptions>() ?? new GatewayOptions();
+        var entraIdOptions = gatewayOptions.EntraId ?? new EntraIdOptions();
 
         services
             .AddAuthentication(options =>
@@ -92,10 +91,16 @@ public static class ServiceCollectionExtensions
                 {
                     OnTokenResponseReceived = context =>
                     {
+                        var tokenResponse = context.TokenEndpointResponse;
+                        if (tokenResponse is null)
+                        {
+                            return Task.CompletedTask;
+                        }
+
                         // Access raw tokens here
-                        var idToken = context.TokenEndpointResponse.IdToken;
-                        var accessToken = context.TokenEndpointResponse.AccessToken;
-                        var refreshToken = context.TokenEndpointResponse.RefreshToken;
+                        var idToken = tokenResponse.IdToken;
+                        var accessToken = tokenResponse.AccessToken;
+                        var refreshToken = tokenResponse.RefreshToken;
 
                         // Log them for debugging (never in production!)
                         Console.WriteLine("ID Token: " + idToken);
@@ -106,11 +111,18 @@ public static class ServiceCollectionExtensions
                     },
                     OnTokenValidated = context =>
                     {
+                        var principal = context.Principal;
+                        if (principal is null)
+                        {
+                            return Task.CompletedTask;
+                        }
+
                         // Inspect claims
-                        foreach (var claim in context.Principal.Claims)
+                        foreach (var claim in principal.Claims)
                         {
                             Console.WriteLine($"{claim.Type}: {claim.Value}");
                         }
+
                         return Task.CompletedTask;
                     }
                 };
@@ -129,12 +141,11 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddGatewayRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
-        var gatewayOptions = new GatewayOptions();
-        configuration.GetSection(GatewayOptions.SectionName).Bind(gatewayOptions);
+        var gatewayOptions = configuration.GetSection(GatewayOptions.SectionName).Get<GatewayOptions>() ?? new GatewayOptions();
 
         services.AddRateLimiter(options =>
         {
-            var rateLimitOptions = gatewayOptions.RateLimiting;
+            var rateLimitOptions = gatewayOptions.RateLimiting ?? new RateLimitOptions();
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>

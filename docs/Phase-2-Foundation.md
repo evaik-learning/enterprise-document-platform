@@ -131,7 +131,7 @@ Recommended implementation:
 ```text
 src/
 └── Gateway/
-    └── EnterpriseDocumentPlatform.Gateway/
+    └── Edp.Gateway/
         ├── Controllers/
         ├── Middleware/
         ├── Configuration/
@@ -212,10 +212,10 @@ Example:
 ```text
 src/Services/Template/
 
-├── EnterpriseDocumentPlatform.Template.Api/
-├── EnterpriseDocumentPlatform.Template.Application/
-├── EnterpriseDocumentPlatform.Template.Domain/
-└── EnterpriseDocumentPlatform.Template.Infrastructure/
+├── Edp.Template.Api/
+├── Edp.Template.Application/
+├── Edp.Template.Domain/
+└── Edp.Template.Infrastructure/
 ```
 
 This follows a layered architecture approach.
@@ -488,13 +488,13 @@ Structure:
 src/
 └── Shared/
     │
-    ├── EnterpriseDocumentPlatform.SharedKernel/
-    ├── EnterpriseDocumentPlatform.Shared.Contracts/
-    ├── EnterpriseDocumentPlatform.Shared.Messaging/
-    ├── EnterpriseDocumentPlatform.Shared.Infrastructure/
-    ├── EnterpriseDocumentPlatform.Shared.Security/
-    ├── EnterpriseDocumentPlatform.Shared.Observability/
-    └── EnterpriseDocumentPlatform.Shared.Storage/
+    ├── Edp.SharedKernel/
+    ├── Edp.Shared.Contracts/
+    ├── Edp.Shared.Messaging/
+    ├── Edp.Shared.Infrastructure/
+    ├── Edp.Shared.Security/
+    ├── Edp.Shared.Observability/
+    └── Edp.Shared.Storage/
 ```
 
 ## SharedKernel

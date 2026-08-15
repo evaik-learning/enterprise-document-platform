@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Edp.Identity.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:59037;http://localhost:59038"
+    }
+  }
+}

@@ -1,14 +1,15 @@
 using Edp.Gateway.Extensions;
 using Edp.Gateway.Middleware;
+using Edp.Shared.Infrastructure.DependencyInjection;
+using Edp.Shared.Observability.Serilog;
 using Scalar.AspNetCore;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register Swagger/OpenAPI
+builder.Services.AddSharedInfrastructure();
+builder.Services.AddSharedSerilog(builder.Configuration);
+
 builder.Services.AddEndpointsApiExplorer();
-
-
 builder.Services.AddGatewayOptions(builder.Configuration);
 builder.Services.AddGatewayApi();
 builder.Services.AddGatewaySecurity(builder.Configuration);
@@ -18,10 +19,10 @@ builder.Services.AddGatewayObservability();
 
 var app = builder.Build();
 
-//app.UseMiddleware<CorrelationIdMiddleware>();
-//app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-//app.UseMiddleware<SecurityHeadersMiddleware>();
-//app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

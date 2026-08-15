@@ -1,0 +1,11 @@
+variables:
+  environmentName: 'dev'
+  location: 'eastus'
+  resourceGroupName: 'rg-edp-platform-dev'
+  appNamePrefix: 'edp'
+  acrSku: 'Basic'
+  appServiceSku: 'B1'
+  sqlAdministratorLogin: 'sqladmin'
+  sqlAdministratorPassword: '$(sqlAdminPassword)'
+  frontEndArtifactDirectory: 'src/Web/Edp.Web/dist'
+  azureSubscription: 'AzureServiceConnection'

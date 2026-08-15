@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Edp.Workflow.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:59045;http://localhost:59048"
+    }
+  }
+}

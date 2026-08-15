@@ -1,0 +1,80 @@
+parameters:
+- name: environmentName
+  type: string
+- name: parameterFile
+  type: string
+- name: serviceConnection
+  type: string
+- name: resourceGroupName
+  type: string
+- name: location
+  type: string
+- name: webAppArtifactPath
+  type: string
+- name: backendImageName
+  type: string
+- name: containerRegistry
+  type: string
+
+stages:
+- stage: Deploy_${{ parameters.environmentName }}
+  displayName: Deploy to ${{ parameters.environmentName }}
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: AzureDeploy
+    displayName: Provision Azure resources
+    environment: ${{ parameters.environmentName }}
+    pool:
+      vmImage: ubuntu-latest
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: Create resource group
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az group create --name ${{ parameters.resourceGroupName }} --location ${{ parameters.location }} --output table
+
+          - task: AzureCLI@2
+            displayName: Provision infrastructure
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment group create \
+                  --resource-group ${{ parameters.resourceGroupName }} \
+                  --template-file infra/main.bicep \
+                  --parameters @${{ parameters.parameterFile }} \
+                  --output table
+
+          - task: AzureCLI@2
+            displayName: Build and push backend container image
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                ACR_LOGIN_SERVER=$(az acr show --name ${{ parameters.containerRegistry }} --resource-group ${{ parameters.resourceGroupName }} --query loginServer -o tsv)
+                docker build -f docker/Dockerfile.gateway -t $ACR_LOGIN_SERVER/${{ parameters.backendImageName }}:$(Build.SourceVersion) .
+                az acr login --name ${{ parameters.containerRegistry }} --resource-group ${{ parameters.resourceGroupName }}
+                docker push $ACR_LOGIN_SERVER/${{ parameters.backendImageName }}:$(Build.SourceVersion)
+
+          - task: AzureCLI@2
+            displayName: Deploy frontend artifact
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                WEBAPP_NAME=$(az webapp list --resource-group ${{ parameters.resourceGroupName }} --query "[?contains(name, 'web-')].name | [0]" -o tsv)
+                if [ -z "$WEBAPP_NAME" ]; then
+                  echo "No web app found in resource group ${{ parameters.resourceGroupName }}"; exit 1
+                fi
+                zip -r frontend.zip .
+                az webapp deploy --resource-group ${{ parameters.resourceGroupName }} --name "$WEBAPP_NAME" --src-path frontend.zip --type zip

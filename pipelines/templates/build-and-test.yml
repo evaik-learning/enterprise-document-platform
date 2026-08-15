@@ -1,0 +1,54 @@
+stages:
+- stage: Build
+  displayName: Build and validate
+  jobs:
+  - job: Backend
+    displayName: Build backend
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: UseDotNet@2
+      displayName: Install .NET SDK
+      inputs:
+        packageType: sdk
+        version: $(dotnetSdkVersion)
+
+    - script: dotnet restore $(solution)
+      displayName: Restore NuGet packages
+
+    - script: dotnet build $(solution) --configuration $(buildConfiguration) --no-restore
+      displayName: Build solution
+
+    - script: |
+        dotnet test $(solution) --configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/test-results
+      displayName: Run unit tests
+
+    - task: PublishTestResults@2
+      displayName: Publish test results
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: '$(Agent.TempDirectory)/test-results/*.trx'
+        failTaskOnFailedTests: false
+
+  - job: Frontend
+    displayName: Build frontend
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: NodeTool@0
+      displayName: Install Node.js
+      inputs:
+        versionSpec: $(nodeVersion)
+
+    - script: |
+        npm --prefix $(webAppProject) ci
+        npm --prefix $(webAppProject) run build
+      displayName: Build React app
+
+    - task: PublishPipelineArtifact@1
+      displayName: Publish frontend artifact
+      inputs:
+        targetPath: '$(webAppProject)/dist'
+        artifact: 'frontend-dist'
+        publishLocation: 'pipeline'

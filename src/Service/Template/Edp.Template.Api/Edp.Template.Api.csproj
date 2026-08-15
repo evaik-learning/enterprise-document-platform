@@ -7,17 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Edp.Template.Application\Edp.Template.Application.csproj" />
-    <ProjectReference Include="..\Edp.Template.Infrastructure\Edp.Template.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Services\Template\Edp.Template.Application\Edp.Template.Application.csproj" />
+    <ProjectReference Include="..\..\..\Services\Template\Edp.Template.Infrastructure\Edp.Template.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="FluentValidation.AspNetCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

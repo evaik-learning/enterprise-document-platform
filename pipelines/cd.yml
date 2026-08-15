@@ -1,0 +1,35 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+- template: variables/prod.yml
+- name: dotnetSdkVersion
+  value: '10.x'
+- name: nodeVersion
+  value: '22.x'
+- name: solution
+  value: 'EnterpriseDocumentPlatform.sln'
+- name: webAppProject
+  value: 'src/Web/Edp.Web'
+- name: buildConfiguration
+  value: 'Release'
+
+stages:
+- template: templates/build-and-test.yml
+- template: templates/deploy-azure.yml
+  parameters:
+    environmentName: 'prod'
+    parameterFile: 'infra/prod.bicepparam'
+    serviceConnection: 'AzureServiceConnection'
+    resourceGroupName: 'rg-edp-platform-prod'
+    location: 'eastus2'
+    webAppArtifactPath: '$(Pipeline.Workspace)/frontend-dist'
+    backendImageName: 'edp-gateway'
+    containerRegistry: 'edpacrprod'

@@ -6,6 +6,7 @@ public static class SharedMiddlewareExtensions
 {
     public static IApplicationBuilder UseSharedPlatformMiddleware(this IApplicationBuilder app)
     {
+        app.UseMiddleware<ProblemDetailsExceptionMiddleware>();
         app.UseMiddleware<CorrelationIdMiddleware>();
         return app;
     }

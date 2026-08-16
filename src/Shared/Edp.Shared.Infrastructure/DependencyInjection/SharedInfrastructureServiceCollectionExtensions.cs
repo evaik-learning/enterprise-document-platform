@@ -6,6 +6,7 @@ using Edp.Shared.Security.CurrentUser;
 using Edp.Shared.Storage;
 using Edp.Shared.Storage.Abstractions;
 using Edp.SharedKernel.Domain;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,25 @@ public static class SharedInfrastructureServiceCollectionExtensions
             return CurrentOrganization.FromClaimsPrincipal(principal);
         });
 
+        return services;
+    }
+
+    public static IServiceCollection AddSharedAuthorization(this IServiceCollection services, params string[] policyNames)
+    {
+        services.AddAuthorization(options =>
+        {
+            foreach (var policyName in policyNames.Where(static name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                options.AddPolicy(policyName, policy => policy.RequireAuthenticatedUser());
+            }
+        });
+
+        return services;
+    }
+
+    public static IServiceCollection AddSharedAuthorization(this IServiceCollection services, Action<AuthorizationOptions> configurePolicies)
+    {
+        services.AddAuthorization(configurePolicies);
         return services;
     }
 

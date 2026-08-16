@@ -65,6 +65,55 @@ By the end of Phase 5, the platform must support:
 
 ---
 
+# 2.1 Remaining Phase 5 Gaps and Execution Tasks
+
+The current implementation has a strong foundation, but the following items remain before Phase 5 can be considered fully complete.
+
+## Priority 1 — Must complete before closure
+
+1. API and integration test coverage
+   - Add end-to-end tests for create/list/get/update/upload/version/validate/activate/archive actions.
+   - Validate ProblemDetails and authorization behavior through HTTP-level tests.
+   - Confirm tenant/organization scoping at the API boundary.
+
+2. Placeholder-definition workflow
+   - Confirm whether placeholder metadata is only extracted from document content or also user-defined/custom placeholders.
+   - Add API and persistence support for CRUD of template placeholder metadata if that is required by the business flow.
+
+3. Deployment validation for local and CI/CD execution
+   - Validate the Template Service runs correctly in Docker Compose and with the existing pipeline configuration.
+   - Verify appsettings, connection strings, storage configuration, and startup dependencies.
+
+4. Event and audit integration verification
+   - Confirm that Template lifecycle events are emitted and consumed consistently.
+   - Validate that service bus messages and audit records match the expected business events.
+
+## Priority 2 — Close before production readiness
+
+5. Contract and architecture tests
+   - Add contract tests for public API payloads and schema stability.
+   - Add architecture tests to enforce the intended service boundaries and prevent shared-layer leakage.
+
+6. Full validation coverage for edge cases
+   - Verify duplicate placeholder detection, invalid file types, storage failures, activation rules, and archive behavior end-to-end.
+
+7. Observability and operations readiness
+   - Review logs, correlation IDs, health checks, and dashboard expectations for the Template Service in Docker and Azure hosting.
+
+## Priority 3 — Post-Phase 5 enhancement
+
+8. Advanced template operations
+   - Template cloning, bulk version management, soft delete lifecycle policies, and more advanced content validation if they are later required.
+
+## Immediate execution plan
+
+- Step 1: add focused API/integration tests around the Template endpoints and validation pipeline.
+- Step 2: validate the Docker/deployment wiring for the Template Service.
+- Step 3: verify placeholder-definition handling and business rules against the intended Phase 5 scope.
+- Step 4: confirm event/audit integration and finalize closure criteria.
+
+---
+
 # 3. Scope
 
 ## 3.1 In Scope

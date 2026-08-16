@@ -1,10 +1,11 @@
 using Edp.Template.Application.Contracts;
 using Edp.Template.Domain.Entities;
+using Edp.Template.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Template.Infrastructure.Persistence;
 
-public class TemplateVersionRepository : ITemplateVersionRepository
+public sealed class TemplateVersionRepository : ITemplateVersionRepository
 {
     private readonly TemplateDbContext _db;
 
@@ -19,9 +20,12 @@ public class TemplateVersionRepository : ITemplateVersionRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<TemplateVersion>> GetByTemplateIdAsync(Guid templateId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TemplateVersion>> GetByTemplateIdAsync(Guid organizationId, Guid templateId, CancellationToken cancellationToken = default)
     {
-        return await _db.TemplateVersions.Where(v => v.TemplateId == templateId).OrderBy(v => v.VersionNumber).ToListAsync(cancellationToken);
+        return await _db.TemplateVersions
+            .Where(v => v.TemplateId == templateId && v.OrganizationId == organizationId)
+            .OrderBy(v => v.VersionNumber)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<int> GetNextVersionNumberAsync(Guid templateId, CancellationToken cancellationToken = default)
@@ -30,21 +34,22 @@ public class TemplateVersionRepository : ITemplateVersionRepository
         return (max ?? 0) + 1;
     }
 
-    public async Task<TemplateVersion?> GetByIdAsync(Guid versionId, CancellationToken cancellationToken = default)
+    public async Task<TemplateVersion?> GetByIdAsync(Guid organizationId, Guid templateId, Guid versionId, CancellationToken cancellationToken = default)
     {
-        return await _db.TemplateVersions.FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken);
+        return await _db.TemplateVersions.FirstOrDefaultAsync(
+            v => v.Id == versionId && v.TemplateId == templateId && v.OrganizationId == organizationId,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TemplateVersion>> GetActiveVersionsAsync(Guid templateId, CancellationToken cancellationToken = default)
+    {
+        return await _db.TemplateVersions
+            .Where(v => v.TemplateId == templateId && v.Status == TemplateVersionStatus.Active)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(TemplateVersion version, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            _db.TemplateVersions.Update(version);
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
-        {
-            throw;
-        }
+        await _db.SaveChangesAsync(cancellationToken);
     }
 }

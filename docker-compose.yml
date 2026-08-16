@@ -64,6 +64,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__TemplateDb: "Server=(localdb)\\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;TrustServerCertificate=True;"
+      ConnectionStrings__BlobStorage: "UseDevelopmentStorage=true"
+      ServiceBus__TemplateTopic: "template-events"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s

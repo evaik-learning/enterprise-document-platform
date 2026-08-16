@@ -15,7 +15,12 @@ public sealed class AzureBlobStorageService : IBlobStorageService
         _containerName = string.IsNullOrWhiteSpace(containerName) ? "documents" : containerName;
     }
 
-    public async Task<string> UploadAsync(Stream content, string path, CancellationToken cancellationToken = default)
+    public Task<string> UploadAsync(Stream content, string path, CancellationToken cancellationToken = default)
+    {
+        return UploadAsync(content, path, null, cancellationToken);
+    }
+
+    public async Task<string> UploadAsync(Stream content, string path, string? contentType = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
         if (string.IsNullOrWhiteSpace(path))
@@ -27,7 +32,13 @@ public sealed class AzureBlobStorageService : IBlobStorageService
         await container.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
         var blob = container.GetBlobClient(path);
-        await blob.UploadAsync(content, overwrite: true, cancellationToken: cancellationToken);
+        var options = new BlobUploadOptions
+        {
+            HttpHeaders = string.IsNullOrWhiteSpace(contentType)
+                ? null
+                : new BlobHttpHeaders { ContentType = contentType }
+        };
+        await blob.UploadAsync(content, options, cancellationToken);
 
         return blob.Uri.ToString();
     }

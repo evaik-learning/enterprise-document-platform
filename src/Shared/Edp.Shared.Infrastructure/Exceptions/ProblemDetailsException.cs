@@ -40,3 +40,27 @@ public sealed class ForbiddenProblemDetailsException : ProblemDetailsException
     {
     }
 }
+
+public sealed class ConflictProblemDetailsException : ProblemDetailsException
+{
+    public ConflictProblemDetailsException(string detail)
+        : base("Conflict", detail, HttpStatusCode.Conflict)
+    {
+    }
+}
+
+public sealed class UnprocessableEntityProblemDetailsException : ProblemDetailsException
+{
+    public UnprocessableEntityProblemDetailsException(string detail)
+        : base("Unprocessable entity", detail, HttpStatusCode.UnprocessableEntity)
+    {
+    }
+}
+
+public sealed class PayloadTooLargeProblemDetailsException : ProblemDetailsException
+{
+    public PayloadTooLargeProblemDetailsException(string detail)
+        : base("Payload too large", detail, HttpStatusCode.RequestEntityTooLarge)
+    {
+    }
+}

@@ -1,5 +1,7 @@
 using Edp.Gateway.Extensions;
+using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
+using Edp.Shared.Observability.Serilog;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);

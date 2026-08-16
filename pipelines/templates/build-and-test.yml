@@ -31,6 +31,50 @@ stages:
         testResultsFiles: '$(Agent.TempDirectory)/test-results/*.trx'
         failTaskOnFailedTests: false
 
+  - job: TemplateService
+    displayName: Template service checks
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: UseDotNet@2
+      displayName: Install .NET SDK
+      inputs:
+        packageType: sdk
+        version: $(dotnetSdkVersion)
+
+    - script: |
+        dotnet restore src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj
+        dotnet build src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj --configuration $(buildConfiguration) --no-restore
+      displayName: Build Template API
+
+    - script: |
+        dotnet test tests/Edp.Template.Tests/Edp.Template.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)/template-test-results
+      displayName: Run Template tests
+
+    - script: |
+        dotnet list src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj package --vulnerable --include-transitive > $(Agent.TempDirectory)/template-vulns.txt 2>&1 || true
+        if grep -Ei "vulnerable|security advisory|advisory" $(Agent.TempDirectory)/template-vulns.txt; then
+          echo "Template dependency vulnerabilities detected. Failing build."
+          cat $(Agent.TempDirectory)/template-vulns.txt
+          exit 1
+        fi
+        echo "No vulnerable Template dependencies detected."
+      displayName: Security scan Template dependencies
+      continueOnError: false
+
+    - script: |
+        docker build -f docker/Dockerfile.template.api -t edp-template-api:ci .
+      displayName: Build Template Docker image
+      continueOnError: false
+
+    - task: PublishTestResults@2
+      displayName: Publish Template test results
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: VSTest
+        testResultsFiles: '$(Agent.TempDirectory)/template-test-results/*.trx'
+        failTaskOnFailedTests: false
+
   - job: Frontend
     displayName: Build frontend
     pool:

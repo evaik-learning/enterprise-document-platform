@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\Edp.SharedKernel\Edp.SharedKernel.csproj" />
+  </ItemGroup>
+
 </Project>

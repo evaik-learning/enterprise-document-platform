@@ -4,5 +4,5 @@ namespace Edp.Template.Application.Contracts;
 
 public interface ITemplateValidator
 {
-    Task<ValidationResultDto> ValidateAsync(Guid templateId, Guid versionId, CancellationToken cancellationToken = default);
+    Task<ValidationResultDto> ValidateAsync(Guid organizationId, Guid templateId, Guid versionId, CancellationToken cancellationToken = default);
 }

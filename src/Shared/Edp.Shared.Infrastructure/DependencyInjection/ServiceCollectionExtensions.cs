@@ -4,9 +4,6 @@ namespace Edp.Shared.Infrastructure.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddSharedInfrastructure(this IServiceCollection services)
-    {
-        // Add common infrastructure registrations here
-        return services;
-    }
+    // Intentionally left empty to avoid duplicate AddSharedInfrastructure extension methods.
+    // Use SharedInfrastructureServiceCollectionExtensions for the real shared registrations.
 }

@@ -50,13 +50,16 @@ public static class ServiceCollectionExtensions
         var gatewayOptions = new GatewayOptions();
         configuration.GetSection(GatewayOptions.SectionName).Bind(gatewayOptions);
         var entraIdOptions = gatewayOptions.EntraId;
+        var hasValidOidcConfig = !string.IsNullOrWhiteSpace(entraIdOptions.TenantId)
+            && !string.IsNullOrWhiteSpace(entraIdOptions.ClientId)
+            && !string.IsNullOrWhiteSpace(entraIdOptions.ClientSecret);
 
-        services
+        var authenticationBuilder = services
             .AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = hasValidOidcConfig ? OpenIdConnectDefaults.AuthenticationScheme : CookieAuthenticationDefaults.AuthenticationScheme;
             })
             .AddCookie(options =>
             {
@@ -67,10 +70,14 @@ public static class ServiceCollectionExtensions
                 options.LoginPath = "/bff/auth/login";
                 options.LogoutPath = "/bff/auth/logout";
                 options.AccessDeniedPath = "/bff/auth/access-denied";
-            })
-            .AddOpenIdConnect(options =>
+            });
+
+        if (hasValidOidcConfig)
+        {
+            authenticationBuilder.AddOpenIdConnect(options =>
             {
-                options.Authority = $"{entraIdOptions.Instance.TrimEnd('/')}/{entraIdOptions.TenantId}/v2.0";
+                var instance = entraIdOptions.Instance ?? "https://login.microsoftonline.com/";
+                options.Authority = $"{instance.TrimEnd('/')}/{entraIdOptions.TenantId}/v2.0";
                 options.ClientId = entraIdOptions.ClientId;
                 options.ClientSecret = entraIdOptions.ClientSecret;
                 options.CallbackPath = entraIdOptions.CallbackPath;
@@ -82,39 +89,17 @@ public static class ServiceCollectionExtensions
                 options.TokenValidationParameters.NameClaimType = "name";
                 options.TokenValidationParameters.RoleClaimType = ClaimTypes.Role;
 
+                var scopes = entraIdOptions.Scopes ?? Array.Empty<string>();
                 options.Scope.Clear();
-                foreach (var scope in entraIdOptions.Scopes)
+                foreach (var scope in scopes)
                 {
-                    options.Scope.Add(scope);
-                }
-
-                options.Events = new OpenIdConnectEvents
-                {
-                    OnTokenResponseReceived = context =>
+                    if (!string.IsNullOrWhiteSpace(scope))
                     {
-                        // Access raw tokens here
-                        var idToken = context.TokenEndpointResponse.IdToken;
-                        var accessToken = context.TokenEndpointResponse.AccessToken;
-                        var refreshToken = context.TokenEndpointResponse.RefreshToken;
-
-                        // Log them for debugging (never in production!)
-                        Console.WriteLine("ID Token: " + idToken);
-                        Console.WriteLine("Access Token: " + accessToken);
-                        Console.WriteLine("Refresh Token: " + refreshToken);
-
-                        return Task.CompletedTask;
-                    },
-                    OnTokenValidated = context =>
-                    {
-                        // Inspect claims
-                        foreach (var claim in context.Principal.Claims)
-                        {
-                            Console.WriteLine($"{claim.Type}: {claim.Value}");
-                        }
-                        return Task.CompletedTask;
+                        options.Scope.Add(scope);
                     }
-                };
+                }
             });
+        }
 
         services.AddAuthorization(options =>
         {

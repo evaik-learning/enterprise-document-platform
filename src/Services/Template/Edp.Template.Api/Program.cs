@@ -6,6 +6,8 @@ using FluentValidation;
 using Edp.Template.Infrastructure.Storage;
 using Azure.Storage.Blobs;
 using FluentValidation.AspNetCore;
+using Edp.Shared.Infrastructure.DependencyInjection;
+using Edp.Shared.Infrastructure.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +19,10 @@ builder.Services.AddSwaggerGen();
 var connectionString = builder.Configuration.GetConnectionString("TemplateDb") ?? "Server=(localdb)\\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;";
 builder.Services.AddDbContext<TemplateDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.AddSharedInfrastructure();
+builder.Services.AddCurrentUserContext();
+builder.Services.AddUnitOfWork<TemplateDbContext>();
 
 // FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
@@ -37,6 +43,8 @@ builder.Services.AddScoped<IPlaceholderRepository, PlaceholderRepository>();
 builder.Services.AddScoped<ITemplateValidator, Edp.Template.Infrastructure.Validation.TemplateValidator>();
 
 var app = builder.Build();
+
+app.UseSharedPlatformMiddleware();
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,7 +1,6 @@
 using Edp.Gateway.Extensions;
-using Edp.Gateway.Middleware;
+using Edp.Shared.Infrastructure.Middleware;
 using Scalar.AspNetCore;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,10 +17,8 @@ builder.Services.AddGatewayObservability();
 
 var app = builder.Build();
 
-//app.UseMiddleware<CorrelationIdMiddleware>();
-//app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-//app.UseMiddleware<SecurityHeadersMiddleware>();
-//app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseSharedPlatformMiddleware();
+app.UseGatewayPlatformMiddleware();
 
 if (app.Environment.IsDevelopment())
 {

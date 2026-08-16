@@ -7,8 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Services\Template\Edp.Template.Application\Edp.Template.Application.csproj" />
-    <ProjectReference Include="..\..\..\Services\Template\Edp.Template.Infrastructure\Edp.Template.Infrastructure.csproj" />
+    <ProjectReference Include="..\Edp.Template.Application\Edp.Template.Application.csproj" />
+    <ProjectReference Include="..\Edp.Template.Infrastructure\Edp.Template.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

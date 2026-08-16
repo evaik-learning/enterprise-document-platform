@@ -5,4 +5,5 @@ public interface ICurrentUser
     Guid UserId { get; }
     string? UserName { get; }
     bool IsAuthenticated { get; }
+    string[] Roles { get; }
 }

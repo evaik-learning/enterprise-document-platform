@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\Shared\Edp.Shared.Observability\Edp.Shared.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>

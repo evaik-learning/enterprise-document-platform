@@ -1,16 +1,9 @@
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Edp.Shared.Infrastructure.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddSharedInfrastructure(this IServiceCollection services)
-    {
-        services.AddHttpContextAccessor();
-        services.AddProblemDetails();
-        services.AddHealthChecks();
-
-        return services;
-    }
+    // Intentionally left empty to avoid duplicate AddSharedInfrastructure extension methods.
+    // Use SharedInfrastructureServiceCollectionExtensions for the real shared registrations.
 }

@@ -26,7 +26,7 @@ public sealed class ProblemDetailsExceptionMiddleware
         catch (ProblemDetailsException exception)
         {
             _logger.LogWarning(exception, "Request failed with {Title}", exception.Title);
-            await WriteProblemAsync(context, (int)exception.StatusCode, exception.Title, exception.Detail);
+            await WriteProblemAsync(context, (int)exception.StatusCode, exception.Title, exception.Detail, exception.Code, exception.Errors);
         }
         catch (Exception exception)
         {
@@ -37,11 +37,11 @@ public sealed class ProblemDetailsExceptionMiddleware
                 throw;
             }
 
-            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError, "An unexpected error occurred.", "The request could not be completed.");
+            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError, "An unexpected error occurred.", "The request could not be completed.", "UNEXPECTED_ERROR", new[] { "The request could not be completed." });
         }
     }
 
-    private static async Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail)
+    private static async Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail, string code, IReadOnlyList<string> errors)
     {
         if (context.Response.HasStarted)
         {
@@ -51,13 +51,20 @@ public sealed class ProblemDetailsExceptionMiddleware
         context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = statusCode;
 
-        await context.Response.WriteAsJsonAsync(new ProblemDetails
+        await context.Response.WriteAsJsonAsync(new
         {
-            Status = statusCode,
-            Title = title,
-            Detail = detail,
-            Instance = context.Request.Path,
-            Extensions = { ["traceId"] = context.TraceIdentifier }
+            code,
+            message = detail,
+            correlationId = context.TraceIdentifier,
+            errors = errors.Select(error => new
+            {
+                code,
+                message = error
+            }).ToArray(),
+            status = statusCode,
+            title,
+            instance = context.Request.Path,
+            traceId = context.TraceIdentifier
         });
     }
 }

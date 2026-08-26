@@ -1,5 +1,6 @@
 using Edp.Shared.Infrastructure.DependencyInjection;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
 
 namespace Edp.Template.Api.Security;
 
@@ -14,13 +15,10 @@ public static class TemplateAuthorizationPolicies
     public const string TemplateDeactivate = "Template.Deactivate";
     public const string TemplateArchive = "Template.Archive";
 
-    public static IServiceCollection AddTemplateAuthorization(this IServiceCollection services)
+    public static IServiceCollection AddTemplateAuthorization(this IServiceCollection services, IConfiguration? configuration = null)
     {
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = "Bearer";
-            options.DefaultChallengeScheme = "Bearer";
-        });
+        var config = configuration ?? new ConfigurationBuilder().AddInMemoryCollection().Build();
+        services.AddSharedJwtBearerAuthentication(config);
 
         services.AddSharedAuthorization(
             TemplateRead,

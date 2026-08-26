@@ -1,12 +1,14 @@
 using System.Diagnostics.Metrics;
 using Edp.Document.Application;
 using Edp.Document.Infrastructure;
+using Edp.Document.Infrastructure.Persistence;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +30,9 @@ builder.Services.AddOpenApi("v1", options =>
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 builder.Services.AddDocumentApplication();
 builder.Services.AddDocumentInfrastructure(builder.Configuration);
-builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 
 var serviceName = "Edp.Document.Api";
@@ -59,6 +61,8 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
+await app.ApplyEntityFrameworkMigrationsAsync<DocumentDbContext>();
+
 app.UseSharedPlatformMiddleware();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -79,8 +83,20 @@ app.Use(async (context, next) =>
         new KeyValuePair<string, object?>("route", context.Request.Path.Value ?? "unknown"));
 });
 
-app.MapOpenApi();
-app.MapGet("/", () => Results.Ok("Document service is running."));
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Document API")
+            .WithTheme(ScalarTheme.BluePlanet)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
+            .WithOpenApiRoutePattern("/openapi/{documentName}.json");
+    });
+    app.MapGet("/", () => Results.Redirect("/scalar"));
+}
+
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready");

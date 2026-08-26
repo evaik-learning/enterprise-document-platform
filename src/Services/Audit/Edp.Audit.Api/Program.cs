@@ -27,6 +27,8 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var app = builder.Build();
 
+await app.ApplyEntityFrameworkMigrationsAsync<AuditDbContext>();
+
 app.UseSharedPlatformMiddleware();
 
 if (app.Environment.IsDevelopment())

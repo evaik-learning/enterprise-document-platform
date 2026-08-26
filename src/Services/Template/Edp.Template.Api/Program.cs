@@ -27,7 +27,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
 
-builder.Services.AddTemplateAuthorization();
+builder.Services.AddTemplateAuthorization(builder.Configuration);
 
 builder.Services.AddTemplateApplication();
 builder.Services.AddTemplateInfrastructure(builder.Configuration);
@@ -64,6 +64,8 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
+await app.ApplyEntityFrameworkMigrationsAsync<TemplateDbContext>();
+
 app.UseSharedPlatformMiddleware();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -92,6 +94,7 @@ if (app.Environment.IsDevelopment())
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
             .WithOpenApiRoutePattern("/openapi/{documentName}.json");
     });
+    app.MapGet("/", () => Results.Redirect("/scalar"));
 }
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });

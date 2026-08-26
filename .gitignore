@@ -25,6 +25,9 @@ coverage/
 .env.*
 !.env.example
 appsettings.*.local.json
+appsettings.Development.json
+**/appsettings.Development.json
+src/Gateway/Edp.Gateway/appsettings.Development.json
 secrets.json
 
 # Node and frontend

@@ -14,18 +14,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 var connectionString = builder.Configuration.GetConnectionString("IdentityDb")
-    ?? "Server=(localdb)\\MSSQLLocalDB;Database=IdentityDb;Trusted_Connection=True;TrustServerCertificate=True;";
+    ?? throw new InvalidOperationException("Connection string 'IdentityDb' is not configured.");
 
 builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 builder.Services.AddUnitOfWork<IdentityDbContext>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 
 var app = builder.Build();
+
+await app.ApplyEntityFrameworkMigrationsAsync<IdentityDbContext>();
 
 app.UseSharedPlatformMiddleware();
 
@@ -40,6 +43,7 @@ if (app.Environment.IsDevelopment())
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
             .WithOpenApiRoutePattern("/openapi/{documentName}.json");
     });
+    app.MapGet("/", () => Results.Redirect("/scalar"));
 }
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));

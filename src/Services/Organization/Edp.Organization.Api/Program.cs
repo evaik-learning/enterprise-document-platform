@@ -14,18 +14,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 var connectionString = builder.Configuration.GetConnectionString("OrganizationDb")
-    ?? "Server=(localdb)\\MSSQLLocalDB;Database=OrganizationDb;Trusted_Connection=True;TrustServerCertificate=True;";
+    ?? throw new InvalidOperationException("Connection string 'OrganizationDb' is not configured.");
 
 builder.Services.AddDbContext<OrganizationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 builder.Services.AddUnitOfWork<OrganizationDbContext>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 
 var app = builder.Build();
+
+await app.ApplyEntityFrameworkMigrationsAsync<OrganizationDbContext>();
 
 app.UseSharedPlatformMiddleware();
 
@@ -40,6 +43,7 @@ if (app.Environment.IsDevelopment())
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
             .WithOpenApiRoutePattern("/openapi/{documentName}.json");
     });
+    app.MapGet("/", () => Results.Redirect("/scalar"));
 }
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));

@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Edp.Template.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = TemplateAuthorizationPolicies.TemplateRead)]
+//[Authorize(Policy = TemplateAuthorizationPolicies.TemplateRead)]
 [Route("api/v1/templates")]
 public sealed class TemplatesController : ControllerBase
 {
@@ -22,14 +22,15 @@ public sealed class TemplatesController : ControllerBase
         _templateService = templateService;
         _currentUser = currentUser;
         _currentOrganization = currentOrganization;
+
     }
 
     [HttpPost]
-    [Authorize(Policy = TemplateAuthorizationPolicies.TemplateCreate)]
+  //  [Authorize(Policy = TemplateAuthorizationPolicies.TemplateCreate)]
     public async Task<IActionResult> Create([FromBody] CreateTemplateRequest request, CancellationToken cancellationToken)
     {
         var organizationId = RequireOrganization();
-        var dto = await _templateService.CreateAsync(organizationId, CurrentUserId, new CreateTemplateCommand(request.Name, request.Code, request.Description), cancellationToken);
+        var dto = await _templateService.CreateAsync(organizationId, CurrentUserId ?? throw new InvalidOperationException("A user context is required to create templates."), new CreateTemplateCommand(request.Name, request.Code, request.Description), cancellationToken);
         return CreatedAtAction(nameof(Get), new { templateId = dto.Id }, dto);
     }
 

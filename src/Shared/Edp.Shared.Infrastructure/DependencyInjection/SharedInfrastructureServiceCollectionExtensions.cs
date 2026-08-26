@@ -1,15 +1,21 @@
 using System.Security.Claims;
+using System.Text;
 using Azure.Storage.Blobs;
 using Edp.Shared.Infrastructure.Cache;
+using Edp.Shared.Infrastructure.Configuration;
 using Edp.Shared.Infrastructure.Persistence;
 using Edp.Shared.Security.CurrentUser;
 using Edp.Shared.Storage;
 using Edp.Shared.Storage.Abstractions;
 using Edp.SharedKernel.Domain;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Edp.Shared.Infrastructure.DependencyInjection;
 
@@ -38,6 +44,61 @@ public static class SharedInfrastructureServiceCollectionExtensions
             return CurrentOrganization.FromClaimsPrincipal(principal);
         });
 
+        return services;
+    }
+
+    public static IServiceCollection AddSharedJwtBearerAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            if (!string.IsNullOrWhiteSpace(jwtOptions.Authority))
+            {
+                options.Authority = jwtOptions.Authority;
+                options.MetadataAddress = $"{jwtOptions.Authority.TrimEnd('/')}/.well-known/openid-configuration";
+            }
+
+            if (!string.IsNullOrWhiteSpace(jwtOptions.Audience))
+            {
+                options.Audience = jwtOptions.Audience;
+            }
+
+            if (!string.IsNullOrWhiteSpace(jwtOptions.Issuer))
+            {
+                options.TokenValidationParameters.ValidIssuer = jwtOptions.Issuer;
+            }
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = !string.IsNullOrWhiteSpace(jwtOptions.Issuer),
+                ValidIssuer = jwtOptions.Issuer,
+                ValidateAudience = !string.IsNullOrWhiteSpace(jwtOptions.Audience),
+                ValidAudience = jwtOptions.Audience,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = !string.IsNullOrWhiteSpace(jwtOptions.Key),
+                NameClaimType = "name",
+                RoleClaimType = ClaimTypes.Role,
+                ClockSkew = TimeSpan.FromMinutes(2),
+                RequireSignedTokens = !string.IsNullOrWhiteSpace(jwtOptions.Key) || !string.IsNullOrWhiteSpace(jwtOptions.Authority),
+                ValidateActor = false
+            };
+
+            if (!string.IsNullOrWhiteSpace(jwtOptions.Key))
+            {
+                options.TokenValidationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key));
+            }
+
+            options.MapInboundClaims = false;
+        });
+
+        services.AddAuthorization();
         return services;
     }
 
@@ -73,5 +134,19 @@ public static class SharedInfrastructureServiceCollectionExtensions
         services.AddScoped<IBlobStorageService, AzureBlobStorageService>(sp =>
             new AzureBlobStorageService(sp.GetRequiredService<BlobServiceClient>(), containerName));
         return services;
+    }
+
+    public static async Task ApplyEntityFrameworkMigrationsAsync<TDbContext>(this WebApplication app, CancellationToken cancellationToken = default)
+        where TDbContext : DbContext
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
+
+        if (!dbContext.Database.IsRelational())
+        {
+            return;
+        }
+
+        await dbContext.Database.MigrateAsync(cancellationToken);
     }
 }

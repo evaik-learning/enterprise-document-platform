@@ -12,8 +12,11 @@ using Edp.Template.Application.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -163,7 +166,15 @@ public class TemplateApiTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddTemplateAuthorization();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Authority"] = "https://login.microsoftonline.com/test-tenant/v2.0",
+                ["Jwt:Audience"] = "api://edp-api"
+            })
+            .Build();
+
+        services.AddTemplateAuthorization(configuration);
 
         using var provider = services.BuildServiceProvider();
         var authOptions = provider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
@@ -171,6 +182,7 @@ public class TemplateApiTests
 
         Assert.Equal("Bearer", authenticationOptions.DefaultAuthenticateScheme);
         Assert.Equal("Bearer", authenticationOptions.DefaultChallengeScheme);
+        Assert.Equal("Bearer", authenticationOptions.DefaultScheme);
 
         Assert.NotNull(authOptions.GetPolicy(TemplateAuthorizationPolicies.TemplateRead));
         Assert.NotNull(authOptions.GetPolicy(TemplateAuthorizationPolicies.TemplateCreate));
@@ -180,6 +192,19 @@ public class TemplateApiTests
         Assert.NotNull(authOptions.GetPolicy(TemplateAuthorizationPolicies.TemplateActivate));
         Assert.NotNull(authOptions.GetPolicy(TemplateAuthorizationPolicies.TemplateDeactivate));
         Assert.NotNull(authOptions.GetPolicy(TemplateAuthorizationPolicies.TemplateArchive));
+    }
+
+    [Fact]
+    public async Task ApplyEntityFrameworkMigrationsAsyncSkipsNonRelationalProviders()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddDbContext<TestDbContext>(options => options.UseInMemoryDatabase("db-migrations-test"));
+
+        var app = builder.Build();
+
+        await app.ApplyEntityFrameworkMigrationsAsync<TestDbContext>();
+
+        await app.DisposeAsync();
     }
 
     [Fact]
@@ -207,6 +232,13 @@ public class TemplateApiTests
         Assert.Single(auditLogger.Records);
         Assert.Equal("Create", auditLogger.Records[0].Action);
         Assert.Equal("Template", auditLogger.Records[0].EntityType);
+    }
+
+    private sealed class TestDbContext : DbContext
+    {
+        public TestDbContext(DbContextOptions<TestDbContext> options) : base(options)
+        {
+        }
     }
 
     private sealed class FakeTemplateRepository : ITemplateRepository

@@ -23,7 +23,8 @@ public sealed class CurrentOrganization : ICurrentOrganization
         var organizationIdClaim = principal.FindFirst("organization_id")
             ?? principal.FindFirst("org_id")
             ?? principal.FindFirst("tenant_id")
-            ?? principal.FindFirst("tid");
+            ?? principal.FindFirst("tid")
+            ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid");
 
         Guid? organizationId = null;
         if (organizationIdClaim is not null && Guid.TryParse(organizationIdClaim.Value, out var parsedOrganizationId))

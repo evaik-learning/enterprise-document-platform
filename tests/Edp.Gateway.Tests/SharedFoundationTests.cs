@@ -84,6 +84,24 @@ public class SharedFoundationTests
         Assert.Equal(organizationId, currentOrganization.OrganizationId);
     }
 
+    [Theory]
+    [InlineData("tid")]
+    [InlineData("tenant_id")]
+    [InlineData("http://schemas.microsoft.com/identity/claims/tenantid")]
+    public void CurrentOrganization_FromClaimsPrincipal_ShouldAcceptTenantClaimsAsOrganizationId(string claimName)
+    {
+        var organizationId = Guid.Parse("5962c965-1a76-4520-a9bf-5a08c23008ff");
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(claimName, organizationId.ToString())
+        ], "oidc"));
+
+        var currentOrganization = CurrentOrganization.FromClaimsPrincipal(principal);
+
+        Assert.True(currentOrganization.IsInOrganization);
+        Assert.Equal(organizationId, currentOrganization.OrganizationId);
+    }
+
     [Fact]
     public void AddCurrentUserContext_ShouldResolveCurrentUserAndOrganizationFromHttpContext()
     {

@@ -1,9 +1,11 @@
+using Edp.Gateway.Configuration;
 using Edp.Gateway.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Edp.Gateway.Controllers;
 
@@ -11,28 +13,37 @@ namespace Edp.Gateway.Controllers;
 [Route("bff/auth")]
 public sealed class AuthController : ControllerBase
 {
+    private readonly string _frontendBaseUrl;
+
+    public AuthController(IOptions<GatewayOptions> gatewayOptions)
+    {
+        _frontendBaseUrl = gatewayOptions.Value.FrontendBaseUrl.TrimEnd('/');
+    }
+
     [HttpGet("login")]
     [AllowAnonymous]
-    public IActionResult Login([FromQuery] string? returnUrl = "/")
+    public IActionResult Login([FromQuery] string? returnUrl = null)
     {
-        var targetUrl = "http://localhost:5173";
+        var finalReturnUrl = ResolveReturnUrl(returnUrl);
+
         return Challenge(
             new AuthenticationProperties
             {
-                RedirectUri = NormalizeLocalReturnUrl(targetUrl)
+                RedirectUri = finalReturnUrl
             },
             OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     [HttpGet("logout")]
     [Authorize]
-    public IActionResult Logout([FromQuery] string? returnUrl = "/")
+    public IActionResult Logout([FromQuery] string? returnUrl = null)
     {
-        var targetUrl = returnUrl ?? "http://localhost:5173";
+        var finalReturnUrl = ResolveReturnUrl(returnUrl);
+
         return SignOut(
             new AuthenticationProperties
             {
-                RedirectUri = NormalizeLocalReturnUrl(targetUrl)
+                RedirectUri = finalReturnUrl
             },
             CookieAuthenticationDefaults.AuthenticationScheme,
             OpenIdConnectDefaults.AuthenticationScheme);
@@ -70,10 +81,24 @@ public sealed class AuthController : ControllerBase
         return Forbid();
     }
 
-    private static string NormalizeLocalReturnUrl(string? returnUrl)
+    private string ResolveReturnUrl(string? returnUrl)
     {
-        return !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
-            ? returnUrl
-            : "/";
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            return _frontendBaseUrl;
+        }
+
+        if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var absoluteUri) &&
+            (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return absoluteUri.ToString();
+        }
+
+        if (returnUrl.StartsWith('/') && !returnUrl.StartsWith("//"))
+        {
+            return $"{_frontendBaseUrl}/{returnUrl.TrimStart('/')}";
+        }
+
+        return _frontendBaseUrl;
     }
 }

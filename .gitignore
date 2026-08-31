@@ -27,7 +27,13 @@ coverage/
 appsettings.*.local.json
 appsettings.Development.json
 **/appsettings.Development.json
+**/appsettings.*.Development.json
+**/appsettings.Local.json
+**/appsettings.*.Local.json
 src/Gateway/Edp.Gateway/appsettings.Development.json
+src/Services/Identity/Edp.Identity.Api/appsettings.Development.json
+src/Services/Organization/Edp.Organization.Api/appsettings.Development.json
+src/Services/Template/Edp.Template.Api/appsettings.Development.json
 secrets.json
 
 # Node and frontend

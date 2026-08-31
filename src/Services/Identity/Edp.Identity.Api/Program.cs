@@ -12,6 +12,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi("v1", options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Info = new()
+        {
+            Title = "EDP Identity API",
+            Version = "v1",
+            Description = "Enterprise Document Platform Identity Service"
+        };
+
+        return Task.CompletedTask;
+    });
+});
 
 var connectionString = builder.Configuration.GetConnectionString("IdentityDb")
     ?? throw new InvalidOperationException("Connection string 'IdentityDb' is not configured.");
@@ -31,6 +45,8 @@ var app = builder.Build();
 await app.ApplyEntityFrameworkMigrationsAsync<IdentityDbContext>();
 
 app.UseSharedPlatformMiddleware();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {

@@ -8,6 +8,8 @@ public sealed class GatewayOptions
 
     public string PublicApiBasePath { get; init; } = "/api/v1";
 
+    public string FrontendBaseUrl { get; init; } = "http://localhost:5173";
+
     public CorrelationOptions Correlation { get; init; } = new();
 
     public RateLimitOptions RateLimiting { get; init; } = new();
@@ -35,7 +37,9 @@ public sealed class RateLimitOptions
 
 public sealed class SecurityHeaderOptions
 {
-    public string ContentSecurityPolicy { get; init; } = "default-src 'self'; connect-src 'self'; frame-ancestors 'none';";
+    public string ContentSecurityPolicy { get; init; } = "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';";
+
+    public string DevelopmentContentSecurityPolicy { get; init; } = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss: localhost:* 127.0.0.1:*; frame-ancestors 'none';";
 
     public string ReferrerPolicy { get; init; } = "no-referrer";
 

@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Edp.Audit.Application\Edp.Audit.Application.csproj" />
     <ProjectReference Include="..\Edp.Audit.Domain\Edp.Audit.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Persistence\Edp.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Edp.Identity.Application\Edp.Identity.Application.csproj" />
     <ProjectReference Include="..\Edp.Identity.Domain\Edp.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Persistence\Edp.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -62,6 +62,20 @@ public sealed class DocumentApiContractTests
         Assert.Contains("CustomerName", ex.Detail, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task DownloadReturnsGeneratedFile()
+    {
+        var service = new FakeDocumentService();
+        var organizationId = Guid.NewGuid();
+        var controller = new DocumentsController(service, new CurrentOrganization { OrganizationId = organizationId });
+
+        var result = await controller.Download(Guid.NewGuid(), "PDF", CancellationToken.None);
+
+        var file = Assert.IsType<FileStreamResult>(result);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal("Offer.pdf", file.FileDownloadName);
+    }
+
     private sealed class FakeDocumentService : IDocumentService
     {
         public Guid DocumentId { get; } = Guid.NewGuid();
@@ -123,5 +137,13 @@ public sealed class DocumentApiContractTests
                 Message = "Document generated successfully."
             });
         }
+
+        public Task<DocumentDownload?> DownloadAsync(Guid organizationId, Guid documentId, string? fileType = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<DocumentDownload?>(new DocumentDownload(
+                new MemoryStream(),
+                string.Equals(fileType, "PDF", StringComparison.OrdinalIgnoreCase) ? "Offer.pdf" : "Offer.docx",
+                string.Equals(fileType, "PDF", StringComparison.OrdinalIgnoreCase)
+                    ? "application/pdf"
+                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
     }
 }

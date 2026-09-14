@@ -1,4 +1,5 @@
 using Edp.Document.Application.Interfaces;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 using DocumentEntity = global::Edp.Document.Domain.Entities.Document;
 
@@ -6,9 +7,9 @@ namespace Edp.Document.Infrastructure.Persistence;
 
 public sealed class DocumentRepository : IDocumentRepository
 {
-    private readonly DocumentDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public DocumentRepository(DocumentDbContext dbContext)
+    public DocumentRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

@@ -13,7 +13,10 @@ public interface IDocumentService
     Task<DocumentDetailResponse?> GetAsync(Guid organizationId, Guid documentId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default);
     Task<DocumentGenerationResponse> GenerateAsync(Guid organizationId, Guid documentId, GenerateDocumentRequest request, CancellationToken cancellationToken = default);
+    Task<DocumentDownload?> DownloadAsync(Guid organizationId, Guid documentId, string? fileType = null, CancellationToken cancellationToken = default);
 }
+
+public sealed record DocumentDownload(Stream Content, string FileName, string ContentType);
 
 public interface IPlaceholderResolutionService
 {
@@ -44,6 +47,7 @@ public interface IDocumentVersionRepository
 public interface IDocumentFileRepository
 {
     Task AddAsync(DocumentFileEntity file, CancellationToken cancellationToken = default);
+    Task<DocumentFileEntity?> GetByVersionIdAsync(Guid documentVersionId, string? fileType = null, CancellationToken cancellationToken = default);
 }
 
 public interface IDocumentGenerationJobRepository

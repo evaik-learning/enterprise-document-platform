@@ -1,15 +1,16 @@
 using Edp.Template.Application.Contracts;
 using Edp.Template.Domain.Entities;
 using Edp.Template.Domain.Enums;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Template.Infrastructure.Persistence;
 
 public sealed class TemplateVersionRepository : ITemplateVersionRepository
 {
-    private readonly TemplateDbContext _db;
+    private readonly EdpDbContext _db;
 
-    public TemplateVersionRepository(TemplateDbContext db)
+    public TemplateVersionRepository(EdpDbContext db)
     {
         _db = db;
     }

@@ -1,14 +1,15 @@
 using Edp.Template.Application.Contracts;
 using Edp.Template.Domain.Entities;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Template.Infrastructure.Persistence;
 
 public sealed class ValidationResultRepository : IValidationResultRepository
 {
-    private readonly TemplateDbContext _db;
+    private readonly EdpDbContext _db;
 
-    public ValidationResultRepository(TemplateDbContext db)
+    public ValidationResultRepository(EdpDbContext db)
     {
         _db = db;
     }

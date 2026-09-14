@@ -12,21 +12,27 @@ public sealed class DocumentService : IDocumentService
 {
     private readonly IDocumentRepository _documentRepository;
     private readonly IDocumentVersionRepository _documentVersionRepository;
+    private readonly IDocumentFileRepository _documentFileRepository;
     private readonly IPlaceholderResolutionService _placeholderResolutionService;
     private readonly IDocumentGenerationService _documentGenerationService;
+    private readonly IDocumentStorage _documentStorage;
     private readonly IEventPublisher _eventPublisher;
 
     public DocumentService(
         IDocumentRepository documentRepository,
         IDocumentVersionRepository documentVersionRepository,
+        IDocumentFileRepository documentFileRepository,
         IPlaceholderResolutionService placeholderResolutionService,
         IDocumentGenerationService documentGenerationService,
+        IDocumentStorage documentStorage,
         IEventPublisher eventPublisher)
     {
         _documentRepository = documentRepository;
         _documentVersionRepository = documentVersionRepository;
+        _documentFileRepository = documentFileRepository;
         _placeholderResolutionService = placeholderResolutionService;
         _documentGenerationService = documentGenerationService;
+        _documentStorage = documentStorage;
         _eventPublisher = eventPublisher;
     }
 
@@ -103,6 +109,30 @@ public sealed class DocumentService : IDocumentService
         _placeholderResolutionService.Resolve(request.Name, request.Data);
         var response = await _documentGenerationService.GenerateAsync(organizationId, documentId, request.Name, request.Data, request.OutputFormats, cancellationToken);
         return response;
+    }
+
+    public async Task<DocumentDownload?> DownloadAsync(Guid organizationId, Guid documentId, string? fileType = null, CancellationToken cancellationToken = default)
+    {
+        var document = await _documentRepository.GetByIdAsync(organizationId, documentId, cancellationToken);
+        if (document is null)
+        {
+            return null;
+        }
+
+        var version = await _documentVersionRepository.GetLatestAsync(documentId, cancellationToken);
+        if (version is null)
+        {
+            return null;
+        }
+
+        var file = await _documentFileRepository.GetByVersionIdAsync(version.Id, fileType, cancellationToken);
+        if (file is null)
+        {
+            return null;
+        }
+
+        var content = await _documentStorage.DownloadAsync(file.StoragePath, cancellationToken);
+        return content is null ? null : new DocumentDownload(content, file.FileName, file.ContentType);
     }
 
     private static DocumentSummaryResponse MapSummary(DocumentEntity document) => new()

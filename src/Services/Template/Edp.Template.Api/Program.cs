@@ -8,6 +8,7 @@ using Edp.Template.Api.Security;
 using Edp.Template.Application;
 using Edp.Template.Infrastructure;
 using Edp.Template.Infrastructure.Persistence;
+using Edp.Persistence;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -64,8 +65,6 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
-await app.ApplyEntityFrameworkMigrationsAsync<TemplateDbContext>();
-
 app.UseSharedPlatformMiddleware();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -106,7 +105,7 @@ app.MapControllers();
 
 app.Run();
 
-public sealed class TemplateDbHealthCheck(TemplateDbContext dbContext) : IHealthCheck
+public sealed class TemplateDbHealthCheck(EdpDbContext dbContext) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {

@@ -1,15 +1,15 @@
 using Edp.Audit.Application.Repositories;
 using Edp.Audit.Domain.Entities;
-using Edp.Audit.Infrastructure.Persistence;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Audit.Infrastructure.Repositories;
 
 public sealed class AuditLogRepository : IAuditLogRepository
 {
-    private readonly AuditDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public AuditLogRepository(AuditDbContext dbContext)
+    public AuditLogRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

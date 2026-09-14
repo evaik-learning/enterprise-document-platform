@@ -1,27 +1,27 @@
 using Edp.Template.Application.Contracts;
-using Edp.Template.Infrastructure.Persistence;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Template.Infrastructure.Outbox;
 
 public sealed class TemplateOutboxRepository : IOutboxMessageRepository
 {
-    private readonly TemplateDbContext _db;
+    private readonly EdpDbContext _db;
 
-    public TemplateOutboxRepository(TemplateDbContext db)
+    public TemplateOutboxRepository(EdpDbContext db)
     {
         _db = db;
     }
 
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
-        await _db.OutboxMessages.AddAsync(message, cancellationToken);
+        await _db.TemplateOutboxMessages.AddAsync(message, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int maxCount = 20, CancellationToken cancellationToken = default)
     {
-        return await _db.OutboxMessages
+        return await _db.TemplateOutboxMessages
             .Where(m => m.ProcessedOnUtc == null)
             .OrderBy(m => m.OccurredOnUtc)
             .Take(maxCount)
@@ -30,7 +30,7 @@ public sealed class TemplateOutboxRepository : IOutboxMessageRepository
 
     public async Task MarkProcessedAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var message = await _db.OutboxMessages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        var message = await _db.TemplateOutboxMessages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
         if (message is null)
         {
             return;
@@ -42,7 +42,7 @@ public sealed class TemplateOutboxRepository : IOutboxMessageRepository
 
     public async Task MarkFailedAsync(Guid id, string errorMessage, CancellationToken cancellationToken = default)
     {
-        var message = await _db.OutboxMessages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        var message = await _db.TemplateOutboxMessages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
         if (message is null)
         {
             return;

@@ -8,6 +8,7 @@ using Edp.Document.Infrastructure.Storage;
 using Edp.Document.Infrastructure.Templates;
 using Edp.Document.Infrastructure.Validation;
 using Edp.Shared.Infrastructure.DependencyInjection;
+using Edp.Persistence;
 using Edp.Shared.Messaging;
 using Edp.Shared.Messaging.Abstractions;
 using Microsoft.EntityFrameworkCore;
@@ -20,10 +21,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDocumentInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DocumentDb")
-            ?? "Server=(localdb)\\MSSQLLocalDB;Database=DocumentDb;Trusted_Connection=True;TrustServerCertificate=True;";
+        var connectionString = configuration.GetConnectionString("EdpDb")
+            ?? throw new InvalidOperationException("Connection string 'EdpDb' is not configured.");
 
-        services.AddDbContext<DocumentDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContext<EdpDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddUnitOfWork<EdpDbContext>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IDocumentVersionRepository, DocumentVersionRepository>();
         services.AddScoped<IDocumentFileRepository, DocumentFileRepository>();

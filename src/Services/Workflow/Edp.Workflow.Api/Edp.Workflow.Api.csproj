@@ -8,10 +8,20 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Edp.Workflow.Application\Edp.Workflow.Application.csproj" />
+    <ProjectReference Include="..\Edp.Workflow.Infrastructure\Edp.Workflow.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Security\Edp.Shared.Security.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
 </Project>

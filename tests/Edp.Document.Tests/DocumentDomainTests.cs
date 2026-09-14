@@ -328,6 +328,10 @@ public class DocumentDomainTests
             Files.Add(file);
             return Task.CompletedTask;
         }
+
+        public Task<DocumentFile?> GetByVersionIdAsync(Guid documentVersionId, string? fileType = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<DocumentFile?>(Files.FirstOrDefault(x => x.DocumentVersionId == documentVersionId
+                && (string.IsNullOrWhiteSpace(fileType) || x.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase))));
     }
 
     private sealed class FakeDocumentGenerationJobRepository : IDocumentGenerationJobRepository

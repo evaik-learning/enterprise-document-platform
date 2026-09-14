@@ -9,6 +9,23 @@
   <ItemGroup>
     <ProjectReference Include="..\Edp.Workflow.Application\Edp.Workflow.Application.csproj" />
     <ProjectReference Include="..\Edp.Workflow.Domain\Edp.Workflow.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Persistence\Edp.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Messaging\Edp.Shared.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Storage\Edp.Shared.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Messaging.ServiceBus" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
   </ItemGroup>
 
 </Project>

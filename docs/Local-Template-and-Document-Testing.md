@@ -41,10 +41,7 @@ azurite --silent --location .azurite --debug .azurite/debug.log
 ### 3.1 Database settings
 
 ```powershell
-$env:ConnectionStrings__IdentityDb = "Server=(localdb)\MSSQLLocalDB;Database=IdentityDb;Trusted_Connection=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__OrganizationDb = "Server=(localdb)\MSSQLLocalDB;Database=OrganizationDb;Trusted_Connection=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__TemplateDb = "Server=(localdb)\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;TrustServerCertificate=True;"
-$env:ConnectionStrings__DocumentDb = "Server=(localdb)\MSSQLLocalDB;Database=DocumentDb;Trusted_Connection=True;TrustServerCertificate=True;"
+$env:ConnectionStrings__EdpDb = "Server=(localdb)\MSSQLLocalDB;Database=EdpDb;Trusted_Connection=True;TrustServerCertificate=True;"
 $env:ConnectionStrings__BlobStorage = "UseDevelopmentStorage=true"
 ```
 

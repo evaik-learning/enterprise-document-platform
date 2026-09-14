@@ -2,6 +2,7 @@ using Edp.Identity.Application.Interfaces;
 using Edp.Identity.Application.Repositories;
 using Edp.Identity.Application.Services;
 using Edp.Identity.Infrastructure.Persistence;
+using Edp.Persistence;
 using Edp.Identity.Infrastructure.Repositories;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
@@ -27,22 +28,20 @@ builder.Services.AddOpenApi("v1", options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("IdentityDb")
-    ?? throw new InvalidOperationException("Connection string 'IdentityDb' is not configured.");
+var connectionString = builder.Configuration.GetConnectionString("EdpDb")
+    ?? throw new InvalidOperationException("Connection string 'EdpDb' is not configured.");
 
-builder.Services.AddDbContext<IdentityDbContext>(options =>
+builder.Services.AddDbContext<EdpDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
 builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
-builder.Services.AddUnitOfWork<IdentityDbContext>();
+builder.Services.AddUnitOfWork<EdpDbContext>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 
 var app = builder.Build();
-
-await app.ApplyEntityFrameworkMigrationsAsync<IdentityDbContext>();
 
 app.UseSharedPlatformMiddleware();
 app.UseAuthentication();
@@ -63,7 +62,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
-app.MapGet("/health/ready", async (IdentityDbContext dbContext) =>
+app.MapGet("/health/ready", async (EdpDbContext dbContext) =>
 {
     try
     {

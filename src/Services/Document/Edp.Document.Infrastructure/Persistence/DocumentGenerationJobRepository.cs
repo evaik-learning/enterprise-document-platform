@@ -1,14 +1,15 @@
 using Edp.Document.Application.Interfaces;
 using Edp.Document.Domain.Entities;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Document.Infrastructure.Persistence;
 
 public sealed class DocumentGenerationJobRepository : IDocumentGenerationJobRepository
 {
-    private readonly DocumentDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public DocumentGenerationJobRepository(DocumentDbContext dbContext)
+    public DocumentGenerationJobRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

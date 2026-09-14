@@ -1,15 +1,15 @@
 using Edp.Identity.Application.Repositories;
 using Edp.Identity.Domain.Entities;
-using Edp.Identity.Infrastructure.Persistence;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Identity.Infrastructure.Repositories;
 
 public sealed class UserRepository : IUserRepository
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public UserRepository(IdentityDbContext dbContext)
+    public UserRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

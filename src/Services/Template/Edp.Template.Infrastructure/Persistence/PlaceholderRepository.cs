@@ -1,13 +1,14 @@
 using Edp.Template.Application.Contracts;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Template.Infrastructure.Persistence;
 
 public sealed class PlaceholderRepository : IPlaceholderRepository
 {
-    private readonly TemplateDbContext _db;
+    private readonly EdpDbContext _db;
 
-    public PlaceholderRepository(TemplateDbContext db)
+    public PlaceholderRepository(EdpDbContext db)
     {
         _db = db;
     }

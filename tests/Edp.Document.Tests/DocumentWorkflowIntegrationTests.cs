@@ -112,6 +112,10 @@ public sealed class DocumentWorkflowIntegrationTests
             Files.Add(file);
             return Task.CompletedTask;
         }
+
+        public Task<DocumentFileEntity?> GetByVersionIdAsync(Guid documentVersionId, string? fileType = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<DocumentFileEntity?>(Files.FirstOrDefault(x => x.DocumentVersionId == documentVersionId
+                && (string.IsNullOrWhiteSpace(fileType) || x.FileType.Equals(fileType, StringComparison.OrdinalIgnoreCase))));
     }
 
     private sealed class InMemoryDocumentGenerationJobRepository : IDocumentGenerationJobRepository

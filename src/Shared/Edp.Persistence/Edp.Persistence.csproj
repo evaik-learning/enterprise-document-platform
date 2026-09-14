@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Edp.SharedKernel\Edp.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Services\Document\Edp.Document.Domain\Edp.Document.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Template\Edp.Template.Domain\Edp.Template.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Template\Edp.Template.Application\Edp.Template.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Workflow\Edp.Workflow.Domain\Edp.Workflow.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Workflow\Edp.Workflow.Application\Edp.Workflow.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Organization\Edp.Organization.Domain\Edp.Organization.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\Edp.Identity.Domain\Edp.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Audit\Edp.Audit.Domain\Edp.Audit.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Notification\Edp.Notification.Domain\Edp.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Storage\Edp.Storage.Domain\Edp.Storage.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

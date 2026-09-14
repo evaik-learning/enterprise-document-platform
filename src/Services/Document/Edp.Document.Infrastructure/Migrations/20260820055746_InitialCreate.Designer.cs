@@ -302,7 +302,7 @@ namespace Edp.Document.Infrastructure.Migrations
                     b.HasOne("Edp.Document.Domain.Entities.Document", null)
                         .WithMany()
                         .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("Edp.Document.Domain.Entities.DocumentVersion", null)

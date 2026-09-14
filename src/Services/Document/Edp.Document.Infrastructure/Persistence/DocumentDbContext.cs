@@ -78,7 +78,7 @@ public sealed class DocumentDbContext : DbContext
             entity.HasOne<DocumentEntity>()
                 .WithMany()
                 .HasForeignKey(x => x.DocumentId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasOne<DocumentVersionEntity>()
                 .WithMany(x => x.Files)

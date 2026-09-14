@@ -2,6 +2,8 @@ using System.Diagnostics.Metrics;
 using Edp.Document.Application;
 using Edp.Document.Infrastructure;
 using Edp.Document.Infrastructure.Persistence;
+using Edp.Persistence;
+using Edp.Document.Api.Security;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -30,7 +32,7 @@ builder.Services.AddOpenApi("v1", options =>
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
-builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
+builder.Services.AddDocumentAuthorization(builder.Configuration);
 builder.Services.AddDocumentApplication();
 builder.Services.AddDocumentInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks();
@@ -60,8 +62,6 @@ builder.Services.AddOpenTelemetry()
     });
 
 var app = builder.Build();
-
-await app.ApplyEntityFrameworkMigrationsAsync<DocumentDbContext>();
 
 app.UseSharedPlatformMiddleware();
 app.UseAuthentication();

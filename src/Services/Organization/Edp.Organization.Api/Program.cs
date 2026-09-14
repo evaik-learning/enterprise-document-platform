@@ -2,6 +2,7 @@ using Edp.Organization.Application.Interfaces;
 using Edp.Organization.Application.Repositories;
 using Edp.Organization.Application.Services;
 using Edp.Organization.Infrastructure.Persistence;
+using Edp.Persistence;
 using Edp.Organization.Infrastructure.Repositories;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
@@ -12,23 +13,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi("v1");
 
-var connectionString = builder.Configuration.GetConnectionString("OrganizationDb")
-    ?? throw new InvalidOperationException("Connection string 'OrganizationDb' is not configured.");
+var connectionString = builder.Configuration.GetConnectionString("EdpDb")
+    ?? throw new InvalidOperationException("Connection string 'EdpDb' is not configured.");
 
-builder.Services.AddDbContext<OrganizationDbContext>(options =>
+builder.Services.AddDbContext<EdpDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
 builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
-builder.Services.AddUnitOfWork<OrganizationDbContext>();
+builder.Services.AddUnitOfWork<EdpDbContext>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 
 var app = builder.Build();
-
-await app.ApplyEntityFrameworkMigrationsAsync<OrganizationDbContext>();
 
 app.UseSharedPlatformMiddleware();
 
@@ -47,7 +47,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
-app.MapGet("/health/ready", async (OrganizationDbContext dbContext) =>
+app.MapGet("/health/ready", async (EdpDbContext dbContext) =>
 {
     try
     {

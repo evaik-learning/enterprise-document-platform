@@ -1,4 +1,5 @@
 using Edp.Document.Application.Interfaces;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 using DocumentVersionEntity = global::Edp.Document.Domain.Entities.DocumentVersion;
 
@@ -6,9 +7,9 @@ namespace Edp.Document.Infrastructure.Persistence;
 
 public sealed class DocumentVersionRepository : IDocumentVersionRepository
 {
-    private readonly DocumentDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public DocumentVersionRepository(DocumentDbContext dbContext)
+    public DocumentVersionRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

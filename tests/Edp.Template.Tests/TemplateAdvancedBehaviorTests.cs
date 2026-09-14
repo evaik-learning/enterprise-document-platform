@@ -18,6 +18,7 @@ using Edp.Template.Domain.Entities;
 using Edp.Template.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
+using OpenXmlDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 
 namespace Edp.Template.Tests;
 
@@ -213,7 +214,7 @@ public class TemplateAdvancedBehaviorTests
         using (var package = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document, true))
         {
             var mainPart = package.AddMainDocumentPart();
-            mainPart.Document = new Document(new Body(new Paragraph(new Run(new Text(text)))));
+            mainPart.Document = new OpenXmlDocument(new Body(new Paragraph(new Run(new Text(text)))));
         }
 
         stream.Position = 0;

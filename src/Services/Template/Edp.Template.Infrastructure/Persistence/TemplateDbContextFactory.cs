@@ -8,7 +8,7 @@ public class TemplateDbContextFactory : IDesignTimeDbContextFactory<TemplateDbCo
     public TemplateDbContext CreateDbContext(string[] args)
     {
         var builder = new DbContextOptionsBuilder<TemplateDbContext>();
-        var connectionString = Environment.GetEnvironmentVariable("TemplateDb_Connection") ?? "Server=(localdb)\\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;";
+        var connectionString = Environment.GetEnvironmentVariable("EdpDb_Connection") ?? "Server=(localdb)\\MSSQLLocalDB;Database=EdpDb;Trusted_Connection=True;";
         builder.UseSqlServer(connectionString);
         return new TemplateDbContext(builder.Options);
     }

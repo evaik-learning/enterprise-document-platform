@@ -1,15 +1,15 @@
 using Edp.Organization.Application.Repositories;
 using Edp.Organization.Domain.Entities;
-using Edp.Organization.Infrastructure.Persistence;
+using Edp.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Edp.Organization.Infrastructure.Repositories;
 
 public sealed class OrganizationRepository : IOrganizationRepository
 {
-    private readonly OrganizationDbContext _dbContext;
+    private readonly EdpDbContext _dbContext;
 
-    public OrganizationRepository(OrganizationDbContext dbContext)
+    public OrganizationRepository(EdpDbContext dbContext)
     {
         _dbContext = dbContext;
     }

@@ -2,6 +2,7 @@ using Azure.Messaging.ServiceBus;
 using Edp.Shared.Messaging;
 using Edp.Shared.Messaging.Abstractions;
 using Edp.Shared.Infrastructure.DependencyInjection;
+using Edp.Persistence;
 using Edp.Template.Application.Common;
 using Edp.Template.Application.Contracts;
 using Edp.Template.Infrastructure.Audit;
@@ -20,10 +21,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddTemplateInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("TemplateDb")
-            ?? "Server=(localdb)\\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;TrustServerCertificate=True;";
+        var connectionString = configuration.GetConnectionString("EdpDb")
+            ?? throw new InvalidOperationException("Connection string 'EdpDb' is not configured.");
 
-        services.AddDbContext<TemplateDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContext<EdpDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddUnitOfWork<EdpDbContext>();
 
         var uploadSettings = new TemplateUploadSettings
         {

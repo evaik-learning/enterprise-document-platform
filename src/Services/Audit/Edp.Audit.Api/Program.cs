@@ -2,6 +2,7 @@ using Edp.Audit.Application.Interfaces;
 using Edp.Audit.Application.Repositories;
 using Edp.Audit.Application.Services;
 using Edp.Audit.Infrastructure.Persistence;
+using Edp.Persistence;
 using Edp.Audit.Infrastructure.Repositories;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
@@ -13,21 +14,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-var connectionString = builder.Configuration.GetConnectionString("AuditDb")
-    ?? "Server=(localdb)\\MSSQLLocalDB;Database=AuditDb;Trusted_Connection=True;TrustServerCertificate=True;";
+var connectionString = builder.Configuration.GetConnectionString("EdpDb")
+    ?? throw new InvalidOperationException("Connection string 'EdpDb' is not configured.");
 
-builder.Services.AddDbContext<AuditDbContext>(options =>
+builder.Services.AddDbContext<EdpDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
-builder.Services.AddUnitOfWork<AuditDbContext>();
+builder.Services.AddUnitOfWork<EdpDbContext>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var app = builder.Build();
-
-await app.ApplyEntityFrameworkMigrationsAsync<AuditDbContext>();
 
 app.UseSharedPlatformMiddleware();
 
@@ -45,7 +44,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
-app.MapGet("/health/ready", async (AuditDbContext dbContext) =>
+app.MapGet("/health/ready", async (EdpDbContext dbContext) =>
 {
     try
     {

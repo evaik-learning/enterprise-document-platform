@@ -33,6 +33,7 @@ public sealed class WorkflowSubscriptionHostedService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<WorkflowMessageHandler>();
         await _subscriber.SubscribeAsync("document-events", "workflow", handler, stoppingToken);
+        await _subscriber.SubscribeAsync("signing-events", "workflow", handler, stoppingToken);
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }
 }

@@ -7,10 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Edp.Workflow.Application\Edp.Workflow.Application.csproj" />
-    <ProjectReference Include="..\Edp.Workflow.Domain\Edp.Workflow.Domain.csproj" />
-    <ProjectReference Include="..\..\DigitalSignature\Edp.DigitalSignature.Contracts\Edp.DigitalSignature.Contracts.csproj" />
+    <ProjectReference Include="..\Edp.DigitalSignature.Application\Edp.DigitalSignature.Application.csproj" />
+    <ProjectReference Include="..\Edp.DigitalSignature.Domain\Edp.DigitalSignature.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Security\Edp.Shared.Security.csproj" />
     <ProjectReference Include="..\..\..\Shared\Edp.Persistence\Edp.Persistence.csproj" />
     <ProjectReference Include="..\..\..\Shared\Edp.Shared.Messaging\Edp.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\Shared\Edp.Shared.Storage\Edp.Shared.Storage.csproj" />
@@ -26,7 +26,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
   </ItemGroup>
 
 </Project>

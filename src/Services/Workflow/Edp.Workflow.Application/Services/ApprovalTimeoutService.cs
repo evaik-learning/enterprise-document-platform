@@ -9,17 +9,20 @@ namespace Edp.Workflow.Application.Services;
 public sealed class ApprovalTimeoutService : IApprovalTimeoutService
 {
     private readonly IApprovalTaskRepository _approvalTaskRepository;
+    private readonly IWorkflowInstanceRepository _instanceRepository;
     private readonly IWorkflowHistoryRepository _historyRepository;
     private readonly IOutboxMessageRepository _outboxRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public ApprovalTimeoutService(
         IApprovalTaskRepository approvalTaskRepository,
+        IWorkflowInstanceRepository instanceRepository,
         IWorkflowHistoryRepository historyRepository,
         IOutboxMessageRepository outboxRepository,
         IUnitOfWork unitOfWork)
     {
         _approvalTaskRepository = approvalTaskRepository;
+        _instanceRepository = instanceRepository;
         _historyRepository = historyRepository;
         _outboxRepository = outboxRepository;
         _unitOfWork = unitOfWork;
@@ -47,13 +50,28 @@ public sealed class ApprovalTimeoutService : IApprovalTimeoutService
                     expired.StateId,
                     expired.ApprovalTaskId), cancellationToken);
 
+                var instance = await _instanceRepository.GetByIdAsync(
+                    expired.OrganizationId,
+                    expired.WorkflowInstanceId,
+                    cancellationToken)
+                    ?? throw new InvalidOperationException($"Workflow instance {expired.WorkflowInstanceId} was not found.");
+                var integrationEvent = WorkflowIntegrationEventMapper.Map(
+                    expired,
+                    instance,
+                    instance.WorkflowVersion,
+                    expired.CorrelationId ?? expired.WorkflowInstanceId.ToString());
+                if (integrationEvent is null)
+                    continue;
+
                 var envelope = new EventEnvelope
                 {
-                    EventId = Guid.NewGuid(),
-                    EventType = nameof(ApprovalExpiredDomainEvent),
+                    EventId = integrationEvent.Value.Payload.GetType().GetProperty("EventId")?.GetValue(integrationEvent.Value.Payload) as Guid?
+                        ?? Guid.NewGuid(),
+                    EventType = integrationEvent.Value.EventType,
                     OccurredAt = expired.ExpiredAt,
                     OrganizationId = expired.OrganizationId,
-                    Data = expired
+                    CorrelationId = Guid.TryParse(expired.CorrelationId, out var correlationId) ? correlationId : null,
+                    Data = integrationEvent.Value.Payload
                 };
                 await _outboxRepository.AddAsync(
                     OutboxMessage.Create(envelope.EventType, nameof(ApprovalTask), expired.ApprovalTaskId, envelope),

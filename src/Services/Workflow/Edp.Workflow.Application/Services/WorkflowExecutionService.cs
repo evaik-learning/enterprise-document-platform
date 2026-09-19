@@ -198,6 +198,45 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         return instance;
     }
 
+    public async Task<WorkflowInstance> CompleteSigningAsync(
+        Guid organizationId,
+        Guid instanceId,
+        Guid actorUserId,
+        string correlationId,
+        CancellationToken cancellationToken = default)
+    {
+        var instance = await GetInstanceAsync(organizationId, instanceId, cancellationToken);
+        if (instance.Status != InstanceStatus.InProgress || !instance.CurrentStateId.HasValue)
+            throw new InvalidWorkflowStateException(instance.Id, instance.Status, "complete signing");
+
+        var version = await _versionRepository.GetForExecutionAsync(
+            organizationId, instance.WorkflowId, instance.WorkflowVersion, cancellationToken)
+            ?? throw new InvalidWorkflowVersionException(instance.WorkflowVersion, instance.WorkflowVersion);
+        var transition = (await _transitionRepository.ListAsync(organizationId, version.Id, cancellationToken))
+            .Where(candidate => candidate.FromStateId == instance.CurrentStateId.Value)
+            .FirstOrDefault(candidate => string.Equals(candidate.TriggerType, "signing-completed", StringComparison.OrdinalIgnoreCase));
+        if (transition is null)
+            throw new InvalidOperationException("The current workflow state has no signing-completed transition.");
+
+        var context = new WorkflowExecutionContext(
+            instance.Id,
+            instance.DocumentId,
+            instance.OrganizationId,
+            actorUserId,
+            [],
+            instance.Variables.ToDictionary(variable => variable.Name, variable => (object?)variable.Value, StringComparer.OrdinalIgnoreCase),
+            correlationId);
+        var result = _stateMachine.Execute(instance, version, transition, context);
+        if (!result.Success)
+            throw new InvalidOperationException(result.Message);
+
+        await AdvanceAsync(instance, version, actorUserId, correlationId, cancellationToken);
+        await _instanceRepository.UpdateAsync(instance, cancellationToken);
+        await EnqueueDomainEventsAsync(instance, correlationId, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return instance;
+    }
+
     public async Task<ApprovalTask> RejectAsync(
         Guid organizationId,
         Guid taskId,
@@ -323,7 +362,8 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
             if (integrationEvent is null)
                 continue;
 
-            var eventId = Guid.NewGuid();
+            var eventId = integrationEvent.Value.Payload.GetType().GetProperty("EventId")?.GetValue(integrationEvent.Value.Payload) as Guid?
+                ?? Guid.NewGuid();
             var envelope = new EventEnvelope
             {
                 EventId = eventId,

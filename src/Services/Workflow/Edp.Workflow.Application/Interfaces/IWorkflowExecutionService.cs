@@ -31,4 +31,5 @@ public interface IWorkflowExecutionService
     Task<WorkflowInstance> SuspendAsync(Guid organizationId, Guid instanceId, Guid actorUserId, string reason, CancellationToken cancellationToken = default);
     Task<WorkflowInstance> ResumeAsync(Guid organizationId, Guid instanceId, Guid actorUserId, CancellationToken cancellationToken = default);
     Task<WorkflowInstance> ExecuteTransitionAsync(Guid organizationId, Guid instanceId, Guid transitionId, Guid actorUserId, string correlationId, CancellationToken cancellationToken = default);
+    Task<WorkflowInstance> CompleteSigningAsync(Guid organizationId, Guid instanceId, Guid actorUserId, string correlationId, CancellationToken cancellationToken = default);
 }

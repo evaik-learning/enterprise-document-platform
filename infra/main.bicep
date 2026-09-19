@@ -30,6 +30,7 @@ param backendApiNames array = [
   'storage'
   'notification'
   'audit'
+  'digital-signature'
 ]
 
 @description('App Service plan SKU.')
@@ -260,6 +261,9 @@ resource backendAppSettings 'Microsoft.Web/sites/config@2023-01-01' = [for (apiN
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsightsInstrumentationKey
     WEBSITES_PORT: '8080'
     SQLSERVER_CONNECTION_STRING: sqlConnectionString
+    ConnectionStrings__SigningDb: sqlConnectionString
+    ConnectionStrings__ServiceBus: listKeys('${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey', serviceBusNamespace.apiVersion).primaryConnectionString
+    ConnectionStrings__Storage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${listKeys(storageAccount.id, '2024-01-01').keys[0].value};EndpointSuffix=core.windows.net'
     ServiceBus__ConnectionString: listKeys('${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey', serviceBusNamespace.apiVersion).primaryConnectionString
     Storage__ConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${listKeys(storageAccount.id, '2024-01-01').keys[0].value};EndpointSuffix=core.windows.net'
     Config__Environment: environmentName

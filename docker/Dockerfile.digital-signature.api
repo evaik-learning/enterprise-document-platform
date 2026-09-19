@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json ./
+COPY src ./src
+RUN dotnet restore src/Services/DigitalSignature/Edp.DigitalSignature.Api/Edp.DigitalSignature.Api.csproj
+RUN dotnet publish src/Services/DigitalSignature/Edp.DigitalSignature.Api/Edp.DigitalSignature.Api.csproj -c Release -o /app/publish --no-restore
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Edp.DigitalSignature.Api.dll"]

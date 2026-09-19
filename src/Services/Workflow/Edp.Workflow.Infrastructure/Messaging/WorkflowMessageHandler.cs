@@ -36,6 +36,7 @@ public sealed class WorkflowMessageHandler : IMessageHandler
         }
 
         await ProcessDocumentGeneratedAsync(scope.ServiceProvider, envelope, cancellationToken);
+        await ProcessSigningCompletedAsync(scope.ServiceProvider, envelope, cancellationToken);
 
         await inboxRepository.AddAsync(
             new InboxMessage(messageId, envelope.EventType, envelope.OrganizationId),
@@ -71,6 +72,33 @@ public sealed class WorkflowMessageHandler : IMessageHandler
             documentEvent.DocumentId,
             envelope.UserId ?? Guid.Empty,
             envelope.CorrelationId?.ToString() ?? documentEvent.CorrelationId,
+            cancellationToken);
+    }
+
+    private static async Task ProcessSigningCompletedAsync(
+        IServiceProvider serviceProvider,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(envelope.EventType, "SigningRequestCompletedEvent", StringComparison.OrdinalIgnoreCase)
+            || envelope.Data is null)
+        {
+            return;
+        }
+
+        var signingEvent = JsonSerializer.Deserialize<Edp.DigitalSignature.Contracts.Events.SigningRequestCompletedEvent>(
+            JsonSerializer.Serialize(envelope.Data));
+        if (signingEvent is null)
+        {
+            return;
+        }
+
+        var executionService = serviceProvider.GetRequiredService<IWorkflowExecutionService>();
+        await executionService.CompleteSigningAsync(
+            envelope.OrganizationId ?? signingEvent.OrganizationId,
+            signingEvent.WorkflowInstanceId,
+            envelope.UserId ?? Guid.Empty,
+            envelope.CorrelationId?.ToString() ?? signingEvent.CorrelationId,
             cancellationToken);
     }
 }

@@ -41,7 +41,8 @@ public static class SharedInfrastructureServiceCollectionExtensions
         {
             var accessor = sp.GetRequiredService<IHttpContextAccessor>();
             var principal = accessor.HttpContext?.User ?? new ClaimsPrincipal();
-            return CurrentOrganization.FromClaimsPrincipal(principal);
+            var trustedOrganization = accessor.HttpContext?.Request.Headers["X-EDP-Organization"].FirstOrDefault();
+            return CurrentOrganization.FromClaimsPrincipal(principal, trustedOrganization);
         });
 
         return services;

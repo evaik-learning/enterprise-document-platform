@@ -55,6 +55,7 @@ export async function apiGet<TResponse>(path: string, init?: RequestInit) {
 
 export async function apiSend<TResponse>(path: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown, init?: RequestInit) {
   const headers = new Headers(init?.headers);
+  if (method === 'POST' && !headers.has('Idempotency-Key')) headers.set('Idempotency-Key', crypto.randomUUID());
   let requestBody: BodyInit | undefined;
   if (body instanceof FormData) requestBody = body;
   else if (body !== undefined) {

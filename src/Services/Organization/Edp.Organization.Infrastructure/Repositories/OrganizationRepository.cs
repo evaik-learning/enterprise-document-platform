@@ -35,4 +35,37 @@ public sealed class OrganizationRepository : IOrganizationRepository
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<global::Edp.Organization.Domain.Entities.Organization>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Organizations
+            .AsNoTracking()
+            .Where(organization => _dbContext.OrganizationMembers.Any(member =>
+                member.OrganizationId == organization.Id && member.UserId == userId && member.IsActive))
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<OrganizationMember?> GetMemberAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default) =>
+        _dbContext.OrganizationMembers.FirstOrDefaultAsync(
+            member => member.OrganizationId == organizationId && member.UserId == userId,
+            cancellationToken);
+
+    public Task<IReadOnlyList<OrganizationMember>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default) =>
+        _dbContext.OrganizationMembers
+            .AsNoTracking()
+            .Where(member => member.OrganizationId == organizationId)
+            .OrderBy(member => member.Role)
+            .ThenBy(member => member.UserId)
+            .ToListAsync(cancellationToken)
+            .ContinueWith(task => (IReadOnlyList<OrganizationMember>)task.Result, cancellationToken);
+
+    public async Task AddMemberAsync(OrganizationMember member, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.OrganizationMembers.AddAsync(member, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task SaveMemberAsync(OrganizationMember member, CancellationToken cancellationToken = default) =>
+        _dbContext.SaveChangesAsync(cancellationToken);
 }

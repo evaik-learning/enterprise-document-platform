@@ -13,6 +13,7 @@ public static class GatewayMiddlewareExtensions
         app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
         app.UseMiddleware<RequestLoggingMiddleware>();
         app.UseMiddleware<SecurityHeadersMiddleware>();
+        app.UseMiddleware<CsrfMiddleware>();
         return app;
     }
 }

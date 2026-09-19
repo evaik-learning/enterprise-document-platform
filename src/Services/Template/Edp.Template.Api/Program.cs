@@ -27,6 +27,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 
 builder.Services.AddTemplateAuthorization(builder.Configuration);
 

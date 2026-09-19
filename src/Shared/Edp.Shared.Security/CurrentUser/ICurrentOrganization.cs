@@ -14,13 +14,18 @@ public sealed class CurrentOrganization : ICurrentOrganization
     public bool IsInOrganization => OrganizationId.HasValue;
 
     public static CurrentOrganization FromClaimsPrincipal(ClaimsPrincipal principal)
+        => FromClaimsPrincipal(principal, null);
+
+    public static CurrentOrganization FromClaimsPrincipal(ClaimsPrincipal principal, string? trustedOrganizationHeader)
     {
         if (principal is null)
         {
             return new CurrentOrganization { OrganizationId = null };
         }
 
-        var organizationIdClaim = principal.FindFirst("organization_id")
+        var organizationIdClaim = !string.IsNullOrWhiteSpace(trustedOrganizationHeader)
+            ? new Claim("organization_id", trustedOrganizationHeader)
+            : principal.FindFirst("organization_id")
             ?? principal.FindFirst("org_id")
             ?? principal.FindFirst("tenant_id")
             ?? principal.FindFirst("tid")

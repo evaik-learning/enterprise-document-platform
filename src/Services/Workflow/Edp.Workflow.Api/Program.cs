@@ -30,6 +30,7 @@ builder.Services.AddOpenApi("v1", options =>
 });
 builder.Services.AddHealthChecks();
 builder.Services.AddSharedInfrastructure();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 builder.Services.AddCurrentUserContext();
 builder.Services.AddWorkflowAuthorization(builder.Configuration);
 builder.Services.AddWorkflowApplication(builder.Configuration);

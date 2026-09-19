@@ -31,6 +31,7 @@ builder.Services.AddOpenApi("v1", options =>
 });
 
 builder.Services.AddSharedInfrastructure();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
 builder.Services.AddCurrentUserContext();
 builder.Services.AddDocumentAuthorization(builder.Configuration);
 builder.Services.AddDocumentApplication();

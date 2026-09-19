@@ -18,6 +18,7 @@ public sealed class AuditDbContext : DbContext
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).IsRequired();
             entity.Property(x => x.Action).IsRequired().HasMaxLength(200);
             entity.Property(x => x.EntityType).IsRequired().HasMaxLength(200);
             entity.Property(x => x.CorrelationId).IsRequired().HasMaxLength(200);
@@ -26,6 +27,7 @@ public sealed class AuditDbContext : DbContext
             entity.HasIndex(x => x.OrganizationId);
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => x.Timestamp);
+            entity.HasIndex(x => new { x.OrganizationId, x.EventId }).IsUnique();
         });
     }
 }

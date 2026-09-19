@@ -28,6 +28,13 @@ public sealed class TemplateEventPublisher : IIntegrationEventPublisher
             Data = domainEvent
         };
 
+        envelope.OrganizationId = ReadGuid(domainEvent, "OrganizationId");
+        envelope.UserId = ReadGuid(domainEvent, "CreatedBy")
+            ?? ReadGuid(domainEvent, "UpdatedBy")
+            ?? ReadGuid(domainEvent, "ActivatedBy")
+            ?? ReadGuid(domainEvent, "DeactivatedBy")
+            ?? ReadGuid(domainEvent, "ArchivedBy");
+
         try
         {
             var aggregateId = domainEvent switch
@@ -45,6 +52,9 @@ public sealed class TemplateEventPublisher : IIntegrationEventPublisher
             _logger.LogError(exception, "Failed to persist {EventType} to the outbox", envelope.EventType);
         }
     }
+
+    private static Guid? ReadGuid(object value, string propertyName) =>
+        value.GetType().GetProperty(propertyName)?.GetValue(value) is Guid id && id != Guid.Empty ? id : null;
 
     public async Task PublishRangeAsync(IEnumerable<DomainEvent> domainEvents, CancellationToken cancellationToken = default)
     {

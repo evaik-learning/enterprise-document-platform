@@ -5,6 +5,11 @@ using Edp.Workflow.Infrastructure.Persistence;
 using Edp.Persistence;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
+using Edp.Workflow.Api.Middleware;
+using Edp.Workflow.Api.Security;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,13 +31,32 @@ builder.Services.AddOpenApi("v1", options =>
 builder.Services.AddHealthChecks();
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
-builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
+builder.Services.AddWorkflowAuthorization(builder.Configuration);
 builder.Services.AddWorkflowApplication(builder.Configuration);
 builder.Services.AddWorkflowInfrastructure(builder.Configuration);
+
+const string serviceName = "Edp.Workflow.Api";
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(
+        serviceName,
+        typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown"))
+    .WithMetrics(metrics =>
+    {
+        metrics.AddAspNetCoreInstrumentation();
+        metrics.AddHttpClientInstrumentation();
+        metrics.AddMeter("Edp.Workflow");
+    })
+    .WithTracing(tracing =>
+    {
+        tracing.AddAspNetCoreInstrumentation();
+        tracing.AddHttpClientInstrumentation();
+        tracing.AddSource("Edp.Workflow");
+    });
 
 var app = builder.Build();
 
 app.UseSharedPlatformMiddleware();
+app.UseMiddleware<WorkflowExceptionMappingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

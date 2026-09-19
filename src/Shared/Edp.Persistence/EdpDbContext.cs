@@ -4,6 +4,8 @@ using Edp.Identity.Domain.Entities;
 using Edp.Organization.Domain.Entities;
 using Edp.Template.Domain.Entities;
 using Edp.Workflow.Domain;
+using Edp.Notification.Domain.Entities;
+using NotificationEntity = Edp.Notification.Domain.Entities.Notification;
 using Microsoft.EntityFrameworkCore;
 using DocumentEntity = Edp.Document.Domain.Entities.Document;
 using OrganizationEntity = Edp.Organization.Domain.Entities.Organization;
@@ -13,6 +15,7 @@ using TemplateOutboxMessage = Edp.Template.Application.Contracts.OutboxMessage;
 using WorkflowIdempotencyRecord = Edp.Workflow.Application.Contracts.IdempotencyRecord;
 using WorkflowInboxMessage = Edp.Workflow.Application.Contracts.InboxMessage;
 using WorkflowOutboxMessage = Edp.Workflow.Application.Contracts.OutboxMessage;
+using DocumentOutboxMessage = Edp.Document.Application.Contracts.DocumentOutboxMessage;
 
 namespace Edp.Persistence;
 
@@ -22,6 +25,7 @@ public sealed class EdpDbContext(DbContextOptions<EdpDbContext> options) : DbCon
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<DocumentFile> DocumentFiles => Set<DocumentFile>();
     public DbSet<DocumentGenerationJob> DocumentGenerationJobs => Set<DocumentGenerationJob>();
+    public DbSet<DocumentOutboxMessage> DocumentOutboxMessages => Set<DocumentOutboxMessage>();
 
     public DbSet<TemplateEntity> Templates => Set<TemplateEntity>();
     public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
@@ -42,6 +46,8 @@ public sealed class EdpDbContext(DbContextOptions<EdpDbContext> options) : DbCon
     public DbSet<WorkflowOutboxMessage> WorkflowOutboxMessages => Set<WorkflowOutboxMessage>();
     public DbSet<WorkflowIdempotencyRecord> IdempotencyRecords => Set<WorkflowIdempotencyRecord>();
     public DbSet<WorkflowInboxMessage> InboxMessages => Set<WorkflowInboxMessage>();
+    public DbSet<NotificationInboxMessage> NotificationInboxMessages => Set<NotificationInboxMessage>();
+    public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
 
     public DbSet<OrganizationEntity> Organizations => Set<OrganizationEntity>();
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();

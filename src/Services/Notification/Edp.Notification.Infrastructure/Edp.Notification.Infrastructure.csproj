@@ -9,6 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Edp.Notification.Application\Edp.Notification.Application.csproj" />
     <ProjectReference Include="..\Edp.Notification.Domain\Edp.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Persistence\Edp.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Infrastructure\Edp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Edp.Shared.Messaging\Edp.Shared.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,6 @@ using Edp.Shared.Messaging;
 using Edp.Shared.Messaging.Abstractions;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Persistence;
-using Azure.Messaging.ServiceBus;
 
 namespace Edp.Workflow.Infrastructure;
 
@@ -36,20 +35,11 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageRepository, WorkflowOutboxRepository>();
         services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
         services.AddScoped<IInboxMessageRepository, InboxMessageRepository>();
-        var serviceBusConnectionString = configuration.GetConnectionString("ServiceBus");
-        var serviceBusTopic = configuration["ServiceBus:WorkflowTopic"] ?? "workflow-events";
-        if (!string.IsNullOrWhiteSpace(serviceBusConnectionString))
-        {
-            services.AddSingleton(new ServiceBusClient(serviceBusConnectionString));
-            services.AddScoped<IMessagePublisher>(sp => new ServiceBusMessagePublisher(
-                sp.GetRequiredService<ServiceBusClient>(), serviceBusTopic));
-        }
-        else
-        {
-            services.AddScoped<IMessagePublisher, NullMessagePublisher>();
-        }
+        services.AddSingleton<WorkflowMessageHandler>();
+        services.AddSharedServiceBusPublisher(configuration, "ServiceBus:WorkflowTopic", "workflow-events");
         services.AddHostedService<OutboxBackgroundService>();
         services.AddHostedService<ApprovalTimeoutWorker>();
+        services.AddHostedService<WorkflowSubscriptionHostedService>();
 
         return services;
     }

@@ -88,6 +88,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         if (instance.CurrentStateId != task.StateId)
             throw new InvalidOperationException("Approval task does not belong to the current workflow state.");
         task.Approve(actorUserId, comment);
+        instance.RecordApprovalApproved(task.Id, task.StateId, actorUserId, comment);
         await _approvalTaskRepository.UpdateAsync(task, cancellationToken);
         var version = await _versionRepository.GetForExecutionAsync(
             organizationId, instance.WorkflowId, instance.WorkflowVersion, cancellationToken)
@@ -314,16 +315,24 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         foreach (var domainEvent in instance.DomainEvents)
         {
             await _historyRepository.AddAsync(CreateHistory(instance, domainEvent), cancellationToken);
+            var integrationEvent = WorkflowIntegrationEventMapper.Map(
+                domainEvent,
+                instance,
+                instance.WorkflowVersion,
+                correlationId);
+            if (integrationEvent is null)
+                continue;
+
             var eventId = Guid.NewGuid();
             var envelope = new EventEnvelope
             {
                 EventId = eventId,
-                EventType = domainEvent.GetType().Name,
+                EventType = integrationEvent.Value.EventType,
                 OccurredAt = DateTimeOffset.UtcNow,
                 OrganizationId = instance.OrganizationId,
                 UserId = GetEventUserId(domainEvent),
                 CorrelationId = Guid.TryParse(correlationId, out var parsedCorrelationId) ? parsedCorrelationId : null,
-                Data = domainEvent
+                Data = integrationEvent.Value.Payload
             };
             await _outboxRepository.AddAsync(
                 OutboxMessage.Create(envelope.EventType, nameof(WorkflowInstance), instance.Id, envelope),

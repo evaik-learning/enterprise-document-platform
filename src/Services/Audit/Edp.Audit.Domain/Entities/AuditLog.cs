@@ -5,6 +5,7 @@ namespace Edp.Audit.Domain.Entities;
 public sealed class AuditLog : AuditableEntity<Guid>
 {
     public Guid OrganizationId { get; private set; }
+    public Guid EventId { get; private set; }
     public Guid? UserId { get; private set; }
     public string Action { get; private set; } = string.Empty;
     public string EntityType { get; private set; } = string.Empty;
@@ -23,7 +24,8 @@ public sealed class AuditLog : AuditableEntity<Guid>
         Guid entityId,
         string correlationId,
         string ipAddress,
-        Dictionary<string, object?>? metadata = null)
+        Dictionary<string, object?>? metadata = null,
+        Guid? eventId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(entityType);
@@ -33,6 +35,7 @@ public sealed class AuditLog : AuditableEntity<Guid>
         {
             Id = id,
             OrganizationId = organizationId,
+            EventId = eventId.GetValueOrDefault() == Guid.Empty ? Guid.NewGuid() : eventId.Value,
             UserId = userId,
             Action = action.Trim(),
             EntityType = entityType.Trim(),

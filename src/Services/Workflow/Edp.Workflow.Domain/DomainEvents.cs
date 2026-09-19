@@ -95,6 +95,7 @@ public sealed record WorkflowTransitionedDomainEvent(
     Guid ToStateId,
     string ToStateName,
     StateType ToStateType,
+    Guid ActorUserId,
     Guid OrganizationId,
     string? CorrelationId = null
 ) : DomainEvent;

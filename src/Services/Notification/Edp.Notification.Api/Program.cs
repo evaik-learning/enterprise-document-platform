@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Edp.Notification.Infrastructure;
+using Edp.Shared.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,11 @@ builder.Services.AddOpenApi("v1", options =>
     });
 });
 builder.Services.AddHealthChecks();
+builder.Services.AddSharedInfrastructure();
+builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
+builder.Services.AddSharedAuthorization("notification.read");
+builder.Services.AddNotificationInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 

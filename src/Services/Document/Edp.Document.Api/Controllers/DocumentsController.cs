@@ -111,8 +111,7 @@ public sealed class DocumentsController : ControllerBase
 
     private Guid RequireOrganization()
     {
-        return new Guid("405DBA4E-F150-45CB-B4C2-B3B75713B2EF");
-        //return _currentOrganization.OrganizationId
-        //    ?? throw new ForbiddenProblemDetailsException("An organization context is required to access documents.");
+        return _currentOrganization.OrganizationId
+            ?? throw new ForbiddenProblemDetailsException("An organization context is required to access documents.", "DOCUMENT_ORGANIZATION_REQUIRED");
     }
 }

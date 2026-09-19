@@ -2,6 +2,8 @@ using Edp.Workflow.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Edp.Workflow.Application;
 
 namespace Edp.Workflow.Infrastructure.BackgroundJobs;
 
@@ -13,11 +15,12 @@ public sealed class ApprovalTimeoutWorker : BackgroundService
 
     public ApprovalTimeoutWorker(
         IServiceScopeFactory scopeFactory,
-        ILogger<ApprovalTimeoutWorker> logger)
+        ILogger<ApprovalTimeoutWorker> logger,
+        IOptions<WorkflowOptions> options)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _interval = TimeSpan.FromSeconds(30);
+        _interval = TimeSpan.FromSeconds(Math.Max(1, options.Value.TimeoutWorkerIntervalSeconds));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

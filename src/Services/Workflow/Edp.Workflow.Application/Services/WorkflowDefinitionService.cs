@@ -65,6 +65,26 @@ public sealed class WorkflowDefinitionService : IWorkflowDefinitionService
         return version;
     }
 
+    public async Task<IReadOnlyList<WorkflowVersion>> GetVersionsAsync(
+        Guid organizationId,
+        Guid workflowId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await GetWorkflowAsync(organizationId, workflowId, cancellationToken);
+        return await _versionRepository.ListAsync(organizationId, workflowId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkflowVersion>> GetVersionsPageAsync(
+        Guid organizationId,
+        Guid workflowId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await GetWorkflowAsync(organizationId, workflowId, cancellationToken);
+        return await _versionRepository.ListPageAsync(organizationId, workflowId, page, pageSize, cancellationToken);
+    }
+
     public async Task<WorkflowState> AddStateAsync(
         Guid organizationId,
         Guid versionId,
@@ -150,6 +170,18 @@ public sealed class WorkflowDefinitionService : IWorkflowDefinitionService
         workflow.PublishedVersion = version;
         workflow.ModifiedBy = actorUserId.ToString();
         workflow.ModifiedAt = DateTimeOffset.UtcNow;
+        await _workflowRepository.UpdateAsync(workflow, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ArchiveWorkflowAsync(
+        Guid organizationId,
+        Guid workflowId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var workflow = await GetWorkflowAsync(organizationId, workflowId, cancellationToken);
+        workflow.Archive(actorUserId);
         await _workflowRepository.UpdateAsync(workflow, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

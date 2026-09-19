@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Edp.SharedKernel\Edp.SharedKernel.csproj" />
     <ProjectReference Include="..\..\Services\Document\Edp.Document.Domain\Edp.Document.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Document\Edp.Document.Application\Edp.Document.Application.csproj" />
     <ProjectReference Include="..\..\Services\Template\Edp.Template.Domain\Edp.Template.Domain.csproj" />
     <ProjectReference Include="..\..\Services\Template\Edp.Template.Application\Edp.Template.Application.csproj" />
     <ProjectReference Include="..\..\Services\Workflow\Edp.Workflow.Domain\Edp.Workflow.Domain.csproj" />

@@ -5,7 +5,8 @@ public sealed record DocumentGeneratedEvent(
     Guid DocumentId,
     Guid OrganizationId,
     DateTimeOffset OccurredAt,
-    string CorrelationId);
+    string CorrelationId,
+    Guid? WorkflowId = null);
 
 public sealed record WorkflowCreatedEvent(Guid EventId, Guid WorkflowId, Guid OrganizationId, DateTimeOffset OccurredAt, string CorrelationId);
 public sealed record WorkflowPublishedEvent(Guid EventId, Guid WorkflowId, Guid WorkflowVersionId, Guid OrganizationId, DateTimeOffset OccurredAt, string CorrelationId);
@@ -29,6 +30,16 @@ public sealed record WorkflowCompletedEvent(
     Guid DocumentId,
     Guid OrganizationId,
     DateTimeOffset CompletedAt,
+    string CorrelationId);
+
+public sealed record WorkflowCancelledEvent(
+    Guid EventId,
+    Guid WorkflowInstanceId,
+    Guid DocumentId,
+    Guid CancelledBy,
+    string Reason,
+    Guid OrganizationId,
+    DateTimeOffset OccurredAt,
     string CorrelationId);
 
 public sealed record WorkflowStateChangedEvent(

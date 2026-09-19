@@ -21,6 +21,14 @@ public sealed class WorkflowRepository : IWorkflowRepository
     public async Task<IReadOnlyList<global::Edp.Workflow.Domain.Workflow>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default) =>
         await _dbContext.Workflows.Where(x => x.OrganizationId == organizationId).OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<global::Edp.Workflow.Domain.Workflow>> ListPageAsync(Guid organizationId, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        await _dbContext.Workflows
+            .Where(x => x.OrganizationId == organizationId)
+            .OrderBy(x => x.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(global::Edp.Workflow.Domain.Workflow workflow, CancellationToken cancellationToken = default)
     {
         await _dbContext.Workflows.AddAsync(workflow, cancellationToken);
@@ -63,6 +71,14 @@ public sealed class WorkflowVersionRepository : IWorkflowVersionRepository
 
     public async Task<IReadOnlyList<WorkflowVersion>> ListAsync(Guid organizationId, Guid workflowId, CancellationToken cancellationToken = default) =>
         await _dbContext.WorkflowVersions.Where(x => x.OrganizationId == organizationId && x.WorkflowId == workflowId).OrderByDescending(x => x.Version).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<WorkflowVersion>> ListPageAsync(Guid organizationId, Guid workflowId, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        await _dbContext.WorkflowVersions
+            .Where(x => x.OrganizationId == organizationId && x.WorkflowId == workflowId)
+            .OrderByDescending(x => x.Version)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
     public async Task AddAsync(WorkflowVersion version, CancellationToken cancellationToken = default)
     {
@@ -166,6 +182,14 @@ public sealed class ApprovalTaskRepository : IApprovalTaskRepository
             .OrderBy(x => x.DeadlineAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ApprovalTask>> ListForUserPageAsync(Guid organizationId, Guid userId, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        await _dbContext.ApprovalTasks
+            .Where(x => x.OrganizationId == organizationId && x.AssignedToUserId == userId && x.Status == ApprovalStatus.Pending)
+            .OrderBy(x => x.DeadlineAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<ApprovalTask>> ListExpiredAsync(DateTime nowUtc, int batchSize, CancellationToken cancellationToken = default) =>
         await _dbContext.ApprovalTasks
             .Where(x => x.Status == ApprovalStatus.Pending && x.DeadlineAt.HasValue && x.DeadlineAt.Value < nowUtc)
@@ -195,6 +219,14 @@ public sealed class WorkflowHistoryRepository : IWorkflowHistoryRepository
         await _dbContext.WorkflowHistory
             .Where(x => x.OrganizationId == organizationId && x.WorkflowInstanceId == instanceId)
             .OrderBy(x => x.EventAt)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<WorkflowHistory>> ListPageAsync(Guid organizationId, Guid instanceId, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        await _dbContext.WorkflowHistory
+            .Where(x => x.OrganizationId == organizationId && x.WorkflowInstanceId == instanceId)
+            .OrderBy(x => x.EventAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 }
 

@@ -7,6 +7,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Edp.Workflow.Application.Contracts;
+using Edp.Workflow.Api.Security;
+using Edp.Workflow.Application;
+using Microsoft.Extensions.Options;
 
 namespace Edp.Workflow.Api.Controllers;
 
@@ -23,6 +26,7 @@ public sealed class WorkflowController : ControllerBase
     private readonly IIdempotencyRepository _idempotencyRepository;
     private readonly ICurrentOrganization _currentOrganization;
     private readonly ICurrentUser _currentUser;
+    private readonly WorkflowOptions _options;
 
     public WorkflowController(
         IWorkflowRepository workflowRepository,
@@ -32,7 +36,8 @@ public sealed class WorkflowController : ControllerBase
         ICurrentUser currentUser,
         IApprovalTaskRepository approvalTaskRepository,
         IWorkflowHistoryRepository historyRepository,
-        IIdempotencyRepository idempotencyRepository)
+        IIdempotencyRepository idempotencyRepository,
+        IOptions<WorkflowOptions> options)
     {
         _workflowRepository = workflowRepository;
         _executionService = executionService;
@@ -42,9 +47,11 @@ public sealed class WorkflowController : ControllerBase
         _approvalTaskRepository = approvalTaskRepository;
         _historyRepository = historyRepository;
         _idempotencyRepository = idempotencyRepository;
+        _options = options.Value;
     }
 
     [HttpPost]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowCreate)]
     public async Task<ActionResult<WorkflowSummary>> Create(
         [FromBody] CreateWorkflowRequest request,
         CancellationToken cancellationToken)
@@ -56,6 +63,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpGet("{workflowId:guid}")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
     public async Task<ActionResult<WorkflowSummary>> Get(Guid workflowId, CancellationToken cancellationToken)
     {
         var workflow = await _workflowRepository.GetByIdAsync(GetOrganizationId(), workflowId, cancellationToken);
@@ -65,6 +73,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("{workflowId:guid}/versions")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowUpdate)]
     public async Task<ActionResult<WorkflowVersionResponse>> CreateVersion(
         Guid workflowId,
         CancellationToken cancellationToken)
@@ -74,7 +83,32 @@ public sealed class WorkflowController : ControllerBase
         return Ok(new WorkflowVersionResponse(version.Id, version.WorkflowId, version.Version, version.IsPublished));
     }
 
+    [HttpGet("{workflowId:guid}/versions")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<IReadOnlyList<WorkflowVersionResponse>>> GetVersions(
+        Guid workflowId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var versions = await _definitionService.GetVersionsPageAsync(
+            GetOrganizationId(), workflowId, page, pageSize, cancellationToken);
+        return Ok(versions.Select(version => new WorkflowVersionResponse(
+            version.Id, version.WorkflowId, version.Version, version.IsPublished)));
+    }
+
+    [HttpPost("{workflowId:guid}/archive")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowUpdate)]
+    public async Task<IActionResult> Archive(Guid workflowId, CancellationToken cancellationToken)
+    {
+        await _definitionService.ArchiveWorkflowAsync(
+            GetOrganizationId(), workflowId, _currentUser.UserId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("versions/{versionId:guid}/states")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowUpdate)]
     public async Task<ActionResult<WorkflowStateResponse>> AddState(
         Guid versionId,
         [FromBody] AddStateRequest request,
@@ -86,6 +120,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("versions/{versionId:guid}/transitions")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowUpdate)]
     public async Task<ActionResult<WorkflowTransitionResponse>> AddTransition(
         Guid versionId,
         [FromBody] AddTransitionRequest request,
@@ -97,6 +132,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("{workflowId:guid}/versions/{version:int}/publish")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowPublish)]
     public async Task<IActionResult> Publish(
         Guid workflowId,
         int version,
@@ -108,6 +144,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("versions/{versionId:guid}/validate")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowValidate)]
     public async Task<ActionResult<WorkflowValidationResponse>> Validate(Guid versionId, CancellationToken cancellationToken)
     {
         var errors = await _definitionService.ValidateVersionAsync(GetOrganizationId(), versionId, cancellationToken);
@@ -115,10 +152,15 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<WorkflowSummary>>> List(CancellationToken cancellationToken)
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<IReadOnlyList<WorkflowSummary>>> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         var organizationId = GetOrganizationId();
-        var workflows = await _workflowRepository.ListAsync(organizationId, cancellationToken);
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var workflows = await _workflowRepository.ListPageAsync(organizationId, page, pageSize, cancellationToken);
         return Ok(workflows.Select(workflow => new WorkflowSummary(
             workflow.Id,
             workflow.Code,
@@ -128,6 +170,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("{workflowId:guid}/instances")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowStart)]
     public async Task<ActionResult<WorkflowInstanceResponse>> Start(
         Guid workflowId,
         [FromBody] StartWorkflowRequest request,
@@ -170,6 +213,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpGet("instances/{instanceId:guid}")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
     public async Task<ActionResult<WorkflowInstanceResponse>> GetInstance(
         Guid instanceId,
         [FromServices] IWorkflowInstanceRepository instanceRepository,
@@ -180,6 +224,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("instances/{instanceId:guid}/cancel")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowCancel)]
     public async Task<ActionResult<WorkflowInstanceResponse>> Cancel(Guid instanceId, [FromBody] WorkflowReasonRequest request, CancellationToken cancellationToken)
     {
         var instance = await _executionService.CancelAsync(GetOrganizationId(), instanceId, _currentUser.UserId, request.Reason, cancellationToken);
@@ -187,6 +232,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("instances/{instanceId:guid}/suspend")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowSuspend)]
     public async Task<ActionResult<WorkflowInstanceResponse>> Suspend(Guid instanceId, [FromBody] WorkflowReasonRequest request, CancellationToken cancellationToken)
     {
         var instance = await _executionService.SuspendAsync(GetOrganizationId(), instanceId, _currentUser.UserId, request.Reason, cancellationToken);
@@ -194,6 +240,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("instances/{instanceId:guid}/resume")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowResume)]
     public async Task<ActionResult<WorkflowInstanceResponse>> Resume(Guid instanceId, CancellationToken cancellationToken)
     {
         var instance = await _executionService.ResumeAsync(GetOrganizationId(), instanceId, _currentUser.UserId, cancellationToken);
@@ -201,6 +248,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("instances/{instanceId:guid}/transitions/{transitionId:guid}")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowStart)]
     public async Task<ActionResult<WorkflowInstanceResponse>> ExecuteTransition(Guid instanceId, Guid transitionId, CancellationToken cancellationToken)
     {
         var instance = await _executionService.ExecuteTransitionAsync(
@@ -210,23 +258,41 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpGet("instances/{instanceId:guid}/history")]
-    public async Task<ActionResult<IReadOnlyList<WorkflowHistoryResponse>>> History(Guid instanceId, CancellationToken cancellationToken)
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<IReadOnlyList<WorkflowHistoryResponse>>> History(
+        Guid instanceId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
-        var history = await _historyRepository.ListAsync(GetOrganizationId(), instanceId, cancellationToken);
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var history = await _historyRepository.ListPageAsync(GetOrganizationId(), instanceId, page, pageSize, cancellationToken);
         return Ok(history.Select(entry => new WorkflowHistoryResponse(
             entry.Id, entry.EventType, entry.StateId, entry.ApprovalTaskId, entry.UserId,
             entry.Description, entry.EventAt)));
     }
 
     [HttpGet("approval-tasks/my")]
-    public async Task<ActionResult<IReadOnlyList<ApprovalTaskResponse>>> MyApprovals(CancellationToken cancellationToken)
+    [Authorize(Policy = WorkflowAuthorizationPolicies.ApprovalRead)]
+    public async Task<ActionResult<IReadOnlyList<ApprovalTaskResponse>>> MyApprovals(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
-        var tasks = await _approvalTaskRepository.ListForUserAsync(
-            GetOrganizationId(), _currentUser.UserId, cancellationToken);
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var tasks = await _approvalTaskRepository.ListForUserPageAsync(
+            GetOrganizationId(), _currentUser.UserId, page, pageSize, cancellationToken);
         return Ok(tasks.Select(ToResponse));
     }
 
+    private (int Page, int PageSize) NormalizePage(int page, int pageSize)
+    {
+        var maximum = Math.Max(1, _options.MaxHistoryPageSize);
+        return (Math.Max(1, page), Math.Clamp(pageSize, 1, maximum));
+    }
+
     [HttpPost("approval-tasks/{taskId:guid}/approve")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.ApprovalApprove)]
     public async Task<ActionResult<ApprovalTaskResponse>> Approve(
         Guid taskId,
         [FromBody] ApprovalCommentRequest? request,
@@ -238,6 +304,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("approval-tasks/{taskId:guid}/reject")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.ApprovalReject)]
     public async Task<ActionResult<ApprovalTaskResponse>> Reject(
         Guid taskId,
         [FromBody] ApprovalCommentRequest request,
@@ -252,6 +319,7 @@ public sealed class WorkflowController : ControllerBase
     }
 
     [HttpPost("approval-tasks/{taskId:guid}/delegate")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.ApprovalDelegate)]
     public async Task<ActionResult<ApprovalTaskResponse>> Delegate(Guid taskId, [FromBody] DelegateApprovalRequest request, CancellationToken cancellationToken)
     {
         if (request.DelegateToUserId == Guid.Empty || string.IsNullOrWhiteSpace(request.Reason))

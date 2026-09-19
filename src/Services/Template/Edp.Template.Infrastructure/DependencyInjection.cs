@@ -1,4 +1,3 @@
-using Azure.Messaging.ServiceBus;
 using Edp.Shared.Messaging;
 using Edp.Shared.Messaging.Abstractions;
 using Edp.Shared.Infrastructure.DependencyInjection;
@@ -40,17 +39,7 @@ public static class DependencyInjection
         var blobConnectionString = configuration.GetConnectionString("BlobStorage") ?? "UseDevelopmentStorage=true";
         services.AddAzureBlobStorage(blobConnectionString, uploadSettings.BlobContainer);
 
-        var serviceBusConnectionString = configuration.GetConnectionString("ServiceBus");
-        var serviceBusTopic = configuration["ServiceBus:TemplateTopic"] ?? "template-events";
-        if (!string.IsNullOrWhiteSpace(serviceBusConnectionString))
-        {
-            services.AddSingleton(new ServiceBusClient(serviceBusConnectionString));
-            services.AddScoped<IMessagePublisher>(sp => new ServiceBusMessagePublisher(sp.GetRequiredService<ServiceBusClient>(), serviceBusTopic));
-        }
-        else
-        {
-            services.AddScoped<IMessagePublisher, NullMessagePublisher>();
-        }
+        services.AddSharedServiceBusPublisher(configuration, "ServiceBus:TemplateTopic", "template-events");
 
         services.AddScoped<IOutboxMessageRepository, TemplateOutboxRepository>();
         services.AddHostedService<OutboxBackgroundService>();

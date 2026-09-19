@@ -110,7 +110,7 @@ public class WorkflowInstance : AuditableEntity<Guid>
         if (previousStateId.HasValue)
         {
             AddDomainEvent(new WorkflowTransitionedDomainEvent(
-                Id, previousStateId.Value, toStateId, "", StateType.Task, OrganizationId
+                Id, previousStateId.Value, toStateId, "", StateType.Task, transitionedBy, OrganizationId
             ));
         }
     }
@@ -168,6 +168,12 @@ public class WorkflowInstance : AuditableEntity<Guid>
     {
         AddDomainEvent(new ApprovalRejectedDomainEvent(
             taskId, Id, stateId, rejectedBy, reason, OrganizationId));
+    }
+
+    public void RecordApprovalApproved(Guid taskId, Guid stateId, Guid approvedBy, string? comment)
+    {
+        AddDomainEvent(new ApprovalApprovedDomainEvent(
+            taskId, Id, stateId, approvedBy, comment, OrganizationId));
     }
 
     /// <summary>Complete this workflow instance</summary>

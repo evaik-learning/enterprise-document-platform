@@ -3,9 +3,10 @@ namespace Edp.Workflow.Application.Contracts;
 public interface IOutboxMessageRepository
 {
     Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int maxCount = 20, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int maxCount, int maxRetryAttempts, CancellationToken cancellationToken = default);
     Task MarkProcessedAsync(Guid id, CancellationToken cancellationToken = default);
     Task MarkFailedAsync(Guid id, string errorMessage, CancellationToken cancellationToken = default);
+    Task MarkDeadLetterAsync(Guid id, string errorMessage, CancellationToken cancellationToken = default);
 }
 
 public interface IIdempotencyRepository
@@ -32,6 +33,7 @@ public sealed class OutboxMessage
     public DateTimeOffset? ProcessedOnUtc { get; private set; }
     public string? Error { get; private set; }
     public int RetryCount { get; private set; }
+    public OutboxStatus Status { get; private set; } = OutboxStatus.Pending;
 
     public static OutboxMessage Create(string eventType, string aggregateType, Guid? aggregateId, object payload)
     {
@@ -52,6 +54,7 @@ public sealed class OutboxMessage
     {
         ProcessedOnUtc = DateTimeOffset.UtcNow;
         Error = null;
+        Status = OutboxStatus.Processed;
     }
 
     public void MarkFailed(string error)
@@ -59,4 +62,17 @@ public sealed class OutboxMessage
         Error = error;
         RetryCount++;
     }
+
+    public void MarkDeadLetter(string error)
+    {
+        Error = error;
+        Status = OutboxStatus.DeadLetter;
+    }
+}
+
+public enum OutboxStatus
+{
+    Pending = 0,
+    Processed = 1,
+    DeadLetter = 2
 }

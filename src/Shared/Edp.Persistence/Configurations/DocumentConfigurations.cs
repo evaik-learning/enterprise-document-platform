@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Edp.Document.Domain.Entities;
 using DocumentEntity = Edp.Document.Domain.Entities.Document;
+using DocumentOutboxMessage = Edp.Document.Application.Contracts.DocumentOutboxMessage;
 
 namespace Edp.Persistence.Configurations;
 
@@ -81,5 +82,20 @@ public sealed class DocumentGenerationJobConfiguration : IEntityTypeConfiguratio
         entity.Property(x => x.RowVersion).IsRowVersion();
         entity.HasIndex(x => x.DocumentId).HasDatabaseName("IX_DocumentGenerationJobs_DocumentId");
         entity.HasOne<DocumentEntity>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public sealed class DocumentOutboxConfiguration : IEntityTypeConfiguration<DocumentOutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<DocumentOutboxMessage> entity)
+    {
+        entity.ToTable("OutboxMessages", "document");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.EventType).IsRequired().HasMaxLength(200);
+        entity.Property(x => x.AggregateType).IsRequired().HasMaxLength(200);
+        entity.Property(x => x.Payload).IsRequired();
+        entity.Property(x => x.OccurredOnUtc).IsRequired();
+        entity.Property(x => x.Error).HasMaxLength(2000);
+        entity.HasIndex(x => new { x.ProcessedOnUtc, x.OccurredOnUtc }).HasDatabaseName("IX_DocumentOutboxMessages_Pending");
     }
 }

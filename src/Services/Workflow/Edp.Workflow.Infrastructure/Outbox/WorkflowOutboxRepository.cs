@@ -15,9 +15,9 @@ public sealed class WorkflowOutboxRepository : IOutboxMessageRepository
         await _db.WorkflowOutboxMessages.AddAsync(message, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int maxCount = 20, CancellationToken cancellationToken = default) =>
+    public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(int maxCount, int maxRetryAttempts, CancellationToken cancellationToken = default) =>
         await _db.WorkflowOutboxMessages
-            .Where(message => message.ProcessedOnUtc == null)
+            .Where(message => message.ProcessedOnUtc == null && message.Status == OutboxStatus.Pending && message.RetryCount < maxRetryAttempts)
             .OrderBy(message => message.OccurredOnUtc)
             .Take(maxCount)
             .ToListAsync(cancellationToken);
@@ -38,5 +38,14 @@ public sealed class WorkflowOutboxRepository : IOutboxMessageRepository
             return;
 
         message.MarkFailed(errorMessage);
+    }
+
+    public async Task MarkDeadLetterAsync(Guid id, string errorMessage, CancellationToken cancellationToken = default)
+    {
+        var message = await _db.WorkflowOutboxMessages.FirstOrDefaultAsync(message => message.Id == id, cancellationToken);
+        if (message is null)
+            return;
+
+        message.MarkDeadLetter(errorMessage);
     }
 }

@@ -25,18 +25,27 @@ public sealed class AuditLogService : IAuditLogService
             command.EntityId,
             command.CorrelationId,
             command.IpAddress,
-            command.Metadata);
+            command.Metadata,
+            command.EventId);
 
         return await _repository.AddAsync(auditLog, cancellationToken);
     }
+
+    public Task<bool> ExistsForEventAsync(Guid organizationId, Guid eventId, CancellationToken cancellationToken = default) =>
+        _repository.ExistsForEventAsync(organizationId, eventId, cancellationToken);
 
     public Task<IReadOnlyList<AuditLog>> GetByOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default)
     {
         return _repository.GetByOrganizationIdAsync(organizationId, cancellationToken);
     }
 
-    public Task<IReadOnlyList<AuditLog>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<AuditLog>> GetByUserAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
     {
-        return _repository.GetByUserIdAsync(userId, cancellationToken);
+        return _repository.GetByUserIdAsync(organizationId, userId, cancellationToken);
     }
+
+    public Task<AuditLog?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default) => _repository.GetByIdAsync(organizationId, id, cancellationToken);
+
+    public Task<IReadOnlyList<AuditLog>> SearchAsync(Guid organizationId, string? entityType, Guid? entityId, string? action, DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        _repository.SearchAsync(organizationId, entityType, entityId, action, from, to, page, pageSize, cancellationToken);
 }

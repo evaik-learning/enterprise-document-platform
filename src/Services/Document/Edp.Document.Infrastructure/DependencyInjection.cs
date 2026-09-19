@@ -1,5 +1,5 @@
-using Azure.Messaging.ServiceBus;
 using Edp.Document.Application.Interfaces;
+using Edp.Document.Application.Contracts;
 using Edp.Document.Infrastructure.Background;
 using Edp.Document.Infrastructure.Generation;
 using Edp.Document.Infrastructure.Messaging;
@@ -30,20 +30,11 @@ public static class DependencyInjection
         services.AddScoped<IDocumentVersionRepository, DocumentVersionRepository>();
         services.AddScoped<IDocumentFileRepository, DocumentFileRepository>();
         services.AddScoped<IDocumentGenerationJobRepository, DocumentGenerationJobRepository>();
+        services.AddScoped<IDocumentOutboxMessageRepository, DocumentOutboxRepository>();
 
         services.AddAzureBlobStorage(configuration.GetConnectionString("BlobStorage") ?? "UseDevelopmentStorage=true", "documents");
 
-        var serviceBusConnectionString = configuration.GetConnectionString("ServiceBus");
-        var topicName = configuration["ServiceBus:DocumentTopic"] ?? "document-events";
-        if (!string.IsNullOrWhiteSpace(serviceBusConnectionString))
-        {
-            services.AddSingleton(new ServiceBusClient(serviceBusConnectionString));
-            services.AddScoped<IMessagePublisher>(sp => new ServiceBusMessagePublisher(sp.GetRequiredService<ServiceBusClient>(), topicName));
-        }
-        else
-        {
-            services.AddScoped<IMessagePublisher, NullMessagePublisher>();
-        }
+        services.AddSharedServiceBusPublisher(configuration, "ServiceBus:DocumentTopic", "document-events");
 
         services.AddScoped<IDocumentTemplateClient, TemplateServiceClient>();
         services.AddScoped<IPlaceholderValidator, PlaceholderValidator>();
@@ -51,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentConverter, PdfDocumentConverter>();
         services.AddScoped<IDocumentStorage, BlobDocumentStorage>();
         services.AddScoped<IEventPublisher, DocumentEventPublisher>();
+        services.AddHostedService<DocumentOutboxBackgroundService>();
         services.AddHostedService<DocumentGenerationBackgroundService>();
         return services;
     }

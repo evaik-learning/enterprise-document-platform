@@ -6,6 +6,8 @@ using Edp.Persistence;
 using Edp.Audit.Infrastructure.Repositories;
 using Edp.Shared.Infrastructure.DependencyInjection;
 using Edp.Shared.Infrastructure.Middleware;
+using Edp.Shared.Messaging;
+using Edp.Audit.Infrastructure.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -22,9 +24,14 @@ builder.Services.AddDbContext<EdpDbContext>(options =>
 
 builder.Services.AddSharedInfrastructure();
 builder.Services.AddCurrentUserContext();
+builder.Services.AddSharedJwtBearerAuthentication(builder.Configuration);
+builder.Services.AddSharedAuthorization("audit.read", "audit.write");
 builder.Services.AddUnitOfWork<EdpDbContext>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddSharedServiceBusPublisher(builder.Configuration, "ServiceBus:AuditTopic", "audit-events");
+builder.Services.AddSingleton<AuditMessageHandler>();
+builder.Services.AddHostedService<AuditSubscriptionHostedService>();
 
 var app = builder.Build();
 

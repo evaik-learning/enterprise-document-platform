@@ -141,6 +141,7 @@ public sealed class WorkflowDbContext : DbContext
             entity.Property(x => x.AggregateType).IsRequired().HasMaxLength(250);
             entity.Property(x => x.Payload).IsRequired().HasColumnType("nvarchar(max)");
             entity.Property(x => x.Error).HasMaxLength(4000);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
             entity.HasIndex(x => new { x.ProcessedOnUtc, x.OccurredOnUtc }).HasDatabaseName("IX_WorkflowOutboxMessages_Pending");
         });
 

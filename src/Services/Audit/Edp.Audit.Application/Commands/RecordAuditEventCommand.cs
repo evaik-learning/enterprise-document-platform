@@ -8,4 +8,5 @@ public sealed record RecordAuditEventCommand(
     Guid EntityId,
     string CorrelationId,
     string IpAddress,
-    Dictionary<string, object?>? Metadata = null);
+    Dictionary<string, object?>? Metadata = null,
+    Guid? EventId = null);

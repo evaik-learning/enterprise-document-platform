@@ -56,6 +56,7 @@ public sealed class WorkflowDbContext : DbContext
             entity.Property(x => x.Name).IsRequired().HasMaxLength(150);
             entity.Property(x => x.Configuration).HasColumnType("nvarchar(max)");
             entity.Property(x => x.ApprovalPolicyJson).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.AssignmentRulesJson).HasColumnType("nvarchar(max)");
             entity.Ignore(x => x.AssignmentRules);
             entity.Ignore(x => x.RequiredVariables);
             entity.HasIndex(x => new { x.WorkflowVersionId, x.Name }).IsUnique();

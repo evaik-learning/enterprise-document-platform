@@ -29,6 +29,9 @@ public class WorkflowState : AuditableEntity<Guid>
     /// <summary>Approval policy for this state (if approval state)</summary>
     public string? ApprovalPolicyJson { get; set; }
 
+    /// <summary>Persisted approver assignment rules for approval states.</summary>
+    public string? AssignmentRulesJson { get; set; }
+
     /// <summary>Assignment rules for approvers</summary>
     private List<AssignmentRule> _assignmentRules = new();
     public IReadOnlyList<AssignmentRule> AssignmentRules => _assignmentRules.AsReadOnly();
@@ -65,6 +68,20 @@ public class WorkflowState : AuditableEntity<Guid>
 
         if (!_assignmentRules.Contains(rule))
             _assignmentRules.Add(rule);
+        AssignmentRulesJson = System.Text.Json.JsonSerializer.Serialize(_assignmentRules);
+    }
+
+    public void SetAssignmentRules(IEnumerable<AssignmentRule> rules)
+    {
+        _assignmentRules = rules.Distinct().ToList();
+        AssignmentRulesJson = System.Text.Json.JsonSerializer.Serialize(_assignmentRules);
+    }
+
+    public void LoadPersistedAssignmentRules()
+    {
+        if (string.IsNullOrWhiteSpace(AssignmentRulesJson))
+            return;
+        _assignmentRules = System.Text.Json.JsonSerializer.Deserialize<List<AssignmentRule>>(AssignmentRulesJson) ?? [];
     }
 
     /// <summary>Add required variable</summary>

@@ -32,8 +32,23 @@ public sealed class NotificationsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var context = ResolveContext(organizationId, userId);
-        var notifications = await _service.ListAsync(context.OrganizationId, context.UserId, unreadOnly, page, pageSize, cancellationToken);
-        return Ok(notifications);
+        var boundedPage = Math.Max(1, page);
+        var boundedPageSize = Math.Clamp(pageSize, 1, 100);
+        var notifications = await _service.ListAsync(context.OrganizationId, context.UserId, unreadOnly, boundedPage, boundedPageSize, cancellationToken);
+        return Ok(new
+        {
+            items = notifications,
+            page = boundedPage,
+            pageSize = boundedPageSize,
+            hasNextPage = notifications.Count == boundedPageSize
+        });
+    }
+
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> UnreadCount([FromQuery] Guid? organizationId, [FromQuery] Guid? userId, CancellationToken cancellationToken)
+    {
+        var context = ResolveContext(organizationId, userId);
+        return Ok(new { count = await _service.CountUnreadAsync(context.OrganizationId, context.UserId, cancellationToken) });
     }
 
     [HttpGet("{id:guid}")]

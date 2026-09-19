@@ -88,10 +88,12 @@ public sealed class AuthController : ControllerBase
             return _frontendBaseUrl;
         }
 
-        if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var absoluteUri) &&
-            (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+        if (Uri.TryCreate(_frontendBaseUrl, UriKind.Absolute, out var frontendUri)
+            && Uri.TryCreate(returnUrl, UriKind.Absolute, out var absoluteUri)
+            && (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps)
+            && Uri.Compare(absoluteUri, frontendUri, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
         {
-            return absoluteUri.ToString();
+            return absoluteUri.PathAndQuery + absoluteUri.Fragment;
         }
 
         if (returnUrl.StartsWith('/') && !returnUrl.StartsWith("//"))

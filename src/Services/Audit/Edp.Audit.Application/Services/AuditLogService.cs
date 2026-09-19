@@ -46,6 +46,6 @@ public sealed class AuditLogService : IAuditLogService
 
     public Task<AuditLog?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default) => _repository.GetByIdAsync(organizationId, id, cancellationToken);
 
-    public Task<IReadOnlyList<AuditLog>> SearchAsync(Guid organizationId, string? entityType, Guid? entityId, string? action, DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize, CancellationToken cancellationToken = default) =>
-        _repository.SearchAsync(organizationId, entityType, entityId, action, from, to, page, pageSize, cancellationToken);
+    public Task<IReadOnlyList<AuditLog>> SearchAsync(Guid organizationId, string? entityType, Guid? entityId, string? action, string? correlationId, DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        _repository.SearchAsync(organizationId, entityType, entityId, action, correlationId, from, to, page, pageSize, cancellationToken);
 }

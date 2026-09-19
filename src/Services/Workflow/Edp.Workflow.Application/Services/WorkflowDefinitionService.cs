@@ -91,6 +91,8 @@ public sealed class WorkflowDefinitionService : IWorkflowDefinitionService
         string name,
         StateType stateType,
         Dictionary<string, string>? configuration,
+        IReadOnlyList<AssignmentRule>? assignmentRules = null,
+        IReadOnlyList<Guid>? approverUserIds = null,
         CancellationToken cancellationToken = default)
     {
         var version = await GetVersionAsync(organizationId, versionId, cancellationToken);
@@ -103,6 +105,13 @@ public sealed class WorkflowDefinitionService : IWorkflowDefinitionService
             throw new InvalidOperationException("A workflow version can only have one start state.");
 
         var state = new WorkflowState(versionId, name, stateType, organizationId, configuration);
+        if (stateType is StateType.Approval or StateType.ParallelApprovalAll or StateType.ParallelApprovalAny)
+        {
+            var rules = assignmentRules?.ToList() ?? [];
+            if (approverUserIds is { Count: > 0 })
+                rules.Add(new AssignmentRule(AssignmentRuleType.FixedUsers, approverUserIds.ToList()));
+            state.SetAssignmentRules(rules);
+        }
         await _stateRepository.AddAsync(state, cancellationToken);
         if (stateType == StateType.Start && version.StartStateId == Guid.Empty)
         {

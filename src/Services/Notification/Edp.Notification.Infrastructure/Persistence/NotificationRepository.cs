@@ -21,6 +21,11 @@ public sealed class NotificationRepository : INotificationRepository
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountUnreadAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default) =>
+        _dbContext.Notifications.CountAsync(
+            x => x.OrganizationId == organizationId && x.UserId == userId && x.ReadAtUtc == null,
+            cancellationToken);
+
     public Task<NotificationEntity?> GetAsync(Guid organizationId, Guid userId, Guid id, CancellationToken cancellationToken = default) =>
         _dbContext.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId && x.UserId == userId, cancellationToken);
 

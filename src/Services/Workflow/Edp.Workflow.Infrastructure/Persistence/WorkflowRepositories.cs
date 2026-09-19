@@ -65,6 +65,8 @@ public sealed class WorkflowVersionRepository : IWorkflowVersionRepository
             .Where(transition => transition.OrganizationId == organizationId && transition.WorkflowVersionId == workflowVersion.Id)
             .OrderBy(transition => transition.Order)
             .ToListAsync(cancellationToken);
+        foreach (var state in states)
+            state.LoadPersistedAssignmentRules();
         workflowVersion.LoadDefinition(states, transitions);
         return workflowVersion;
     }

@@ -50,6 +50,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         Guid documentId,
         Guid actorUserId,
         string correlationId,
+        IReadOnlyCollection<string>? actorRoles = null,
         CancellationToken cancellationToken = default)
     {
         var workflow = await _workflowRepository.GetByIdAsync(organizationId, workflowId, cancellationToken)
@@ -66,7 +67,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
             organizationId, documentId, workflowId, version.Version, actorUserId, version.Id);
         instance.Start(version.StartStateId, actorUserId);
         await _instanceRepository.AddAsync(instance, cancellationToken);
-        await AdvanceAsync(instance, version, actorUserId, correlationId, cancellationToken);
+        await AdvanceAsync(instance, version, actorUserId, actorRoles ?? [], correlationId, cancellationToken);
         await EnqueueDomainEventsAsync(instance, correlationId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return instance;
@@ -101,11 +102,11 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         {
             foreach (var sibling in tasks.Where(candidate => candidate.Id != task.Id && candidate.Status == ApprovalStatus.Pending))
                 sibling.Cancel();
-            await AdvanceAsync(instance, version, actorUserId, instance.Id.ToString(), cancellationToken);
+                await AdvanceAsync(instance, version, actorUserId, [], instance.Id.ToString(), cancellationToken);
         }
         else if (tasks.All(candidate => candidate.Status == ApprovalStatus.Approved))
         {
-            await AdvanceAsync(instance, version, actorUserId, instance.Id.ToString(), cancellationToken);
+                await AdvanceAsync(instance, version, actorUserId, [], instance.Id.ToString(), cancellationToken);
         }
         await _instanceRepository.UpdateAsync(instance, cancellationToken);
         await EnqueueDomainEventsAsync(instance, instance.Id.ToString(), cancellationToken);
@@ -191,7 +192,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         if (!result.Success)
             throw new InvalidOperationException(result.Message);
 
-        await AdvanceAsync(instance, version, actorUserId, correlationId, cancellationToken);
+        await AdvanceAsync(instance, version, actorUserId, [], correlationId, cancellationToken);
         await _instanceRepository.UpdateAsync(instance, cancellationToken);
         await EnqueueDomainEventsAsync(instance, correlationId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -230,7 +231,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         if (!result.Success)
             throw new InvalidOperationException(result.Message);
 
-        await AdvanceAsync(instance, version, actorUserId, correlationId, cancellationToken);
+            await AdvanceAsync(instance, version, actorUserId, [], correlationId, cancellationToken);
         await _instanceRepository.UpdateAsync(instance, cancellationToken);
         await EnqueueDomainEventsAsync(instance, correlationId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -275,7 +276,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
 
         instance.RecordApprovalRejected(task.Id, task.StateId, actorUserId, reason);
         await CancelPendingTasksAsync(organizationId, instance.Id, cancellationToken);
-        await AdvanceAsync(instance, version, actorUserId, instance.Id.ToString(), cancellationToken);
+            await AdvanceAsync(instance, version, actorUserId, [], instance.Id.ToString(), cancellationToken);
         await _instanceRepository.UpdateAsync(instance, cancellationToken);
         await EnqueueDomainEventsAsync(instance, instance.Id.ToString(), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -286,6 +287,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
         WorkflowInstance instance,
         WorkflowVersion version,
         Guid actorUserId,
+        IReadOnlyCollection<string> actorRoles,
         string correlationId,
         CancellationToken cancellationToken)
     {
@@ -303,7 +305,7 @@ public sealed class WorkflowExecutionService : IWorkflowExecutionService
             {
                 var policy = state.GetApprovalPolicy();
                 var approverUserIds = policy?.ApproverUserIds
-                    ?? await _assignmentResolver.ResolveAsync(state.AssignmentRules, actorUserId, [], cancellationToken);
+                    ?? await _assignmentResolver.ResolveAsync(state.AssignmentRules, actorUserId, actorRoles, cancellationToken);
                 if (approverUserIds.Count == 0)
                     throw new InvalidOperationException($"Approval state '{state.Name}' has no eligible approvers.");
                 foreach (var userId in approverUserIds)

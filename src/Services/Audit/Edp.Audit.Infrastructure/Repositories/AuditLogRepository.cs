@@ -45,12 +45,13 @@ public sealed class AuditLogRepository : IAuditLogRepository
     public Task<AuditLog?> GetByIdAsync(Guid organizationId, Guid id, CancellationToken cancellationToken = default) =>
         _dbContext.AuditLogs.AsNoTracking().FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<AuditLog>> SearchAsync(Guid organizationId, string? entityType, Guid? entityId, string? action, DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AuditLog>> SearchAsync(Guid organizationId, string? entityType, Guid? entityId, string? action, string? correlationId, DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _dbContext.AuditLogs.AsNoTracking().Where(x => x.OrganizationId == organizationId);
         if (!string.IsNullOrWhiteSpace(entityType)) query = query.Where(x => x.EntityType == entityType);
         if (entityId.HasValue) query = query.Where(x => x.EntityId == entityId.Value);
         if (!string.IsNullOrWhiteSpace(action)) query = query.Where(x => x.Action == action);
+        if (!string.IsNullOrWhiteSpace(correlationId)) query = query.Where(x => x.CorrelationId == correlationId);
         if (from.HasValue) query = query.Where(x => x.Timestamp >= from.Value);
         if (to.HasValue) query = query.Where(x => x.Timestamp <= to.Value);
         return await query.OrderByDescending(x => x.Timestamp).Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 100)).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(cancellationToken);

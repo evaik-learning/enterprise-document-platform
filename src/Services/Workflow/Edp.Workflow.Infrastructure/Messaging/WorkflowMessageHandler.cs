@@ -72,7 +72,7 @@ public sealed class WorkflowMessageHandler : IMessageHandler
             documentEvent.DocumentId,
             envelope.UserId ?? Guid.Empty,
             envelope.CorrelationId?.ToString() ?? documentEvent.CorrelationId,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     private static async Task ProcessSigningCompletedAsync(

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Edp.Shared.Infrastructure.DependencyInjection;
 
 namespace Edp.Workflow.Api.Security;
@@ -49,8 +50,28 @@ public static class WorkflowAuthorizationPolicies
 
         var values = user.Claims
             .Where(claim => claim.Type is "permission" or "permissions" or "scope" or ClaimTypes.Role or "roles")
-            .SelectMany(claim => claim.Type == "scope" ? claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries) : [claim.Value]);
+            .SelectMany(claim => ParsePermissionValues(claim.Type, claim.Value));
 
         return values.Any(value => string.Equals(value, permission, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IEnumerable<string> ParsePermissionValues(string claimType, string value)
+    {
+        if (claimType == "scope")
+            return value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (value.TrimStart().StartsWith("[", StringComparison.Ordinal))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<string[]>(value) ?? [];
+            }
+            catch (JsonException)
+            {
+                return [];
+            }
+        }
+
+        return value.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

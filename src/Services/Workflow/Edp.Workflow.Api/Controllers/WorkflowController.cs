@@ -23,6 +23,9 @@ public sealed class WorkflowController : ControllerBase
     private readonly IWorkflowDefinitionService _definitionService;
     private readonly IApprovalTaskRepository _approvalTaskRepository;
     private readonly IWorkflowHistoryRepository _historyRepository;
+    private readonly IWorkflowVersionRepository _versionRepository;
+    private readonly IWorkflowStateRepository _stateRepository;
+    private readonly IWorkflowTransitionRepository _transitionRepository;
     private readonly IIdempotencyRepository _idempotencyRepository;
     private readonly ICurrentOrganization _currentOrganization;
     private readonly ICurrentUser _currentUser;
@@ -36,6 +39,9 @@ public sealed class WorkflowController : ControllerBase
         ICurrentUser currentUser,
         IApprovalTaskRepository approvalTaskRepository,
         IWorkflowHistoryRepository historyRepository,
+        IWorkflowVersionRepository versionRepository,
+        IWorkflowStateRepository stateRepository,
+        IWorkflowTransitionRepository transitionRepository,
         IIdempotencyRepository idempotencyRepository,
         IOptions<WorkflowOptions> options)
     {
@@ -46,6 +52,9 @@ public sealed class WorkflowController : ControllerBase
         _currentUser = currentUser;
         _approvalTaskRepository = approvalTaskRepository;
         _historyRepository = historyRepository;
+        _versionRepository = versionRepository;
+        _stateRepository = stateRepository;
+        _transitionRepository = transitionRepository;
         _idempotencyRepository = idempotencyRepository;
         _options = options.Value;
     }
@@ -98,6 +107,22 @@ public sealed class WorkflowController : ControllerBase
             version.Id, version.WorkflowId, version.Version, version.IsPublished)));
     }
 
+    [HttpGet("versions/{versionId:guid}/graph")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<WorkflowGraphResponse>> GetGraph(Guid versionId, CancellationToken cancellationToken)
+    {
+        var organizationId = GetOrganizationId();
+        var version = await _versionRepository.GetByIdAsync(organizationId, versionId, cancellationToken);
+        if (version is null)
+            return NotFound();
+
+        var states = await _stateRepository.ListAsync(organizationId, versionId, cancellationToken);
+        var transitions = await _transitionRepository.ListAsync(organizationId, versionId, cancellationToken);
+        return Ok(new WorkflowGraphResponse(
+            states.Select(state => new WorkflowStateResponse(state.Id, state.WorkflowVersionId, state.Name, state.StateType)).ToList(),
+            transitions.Select(transition => new WorkflowTransitionResponse(transition.Id, transition.WorkflowVersionId, transition.FromStateId, transition.ToStateId, transition.Order)).ToList()));
+    }
+
     [HttpPost("{workflowId:guid}/archive")]
     [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowUpdate)]
     public async Task<IActionResult> Archive(Guid workflowId, CancellationToken cancellationToken)
@@ -115,7 +140,7 @@ public sealed class WorkflowController : ControllerBase
         CancellationToken cancellationToken)
     {
         var state = await _definitionService.AddStateAsync(
-            GetOrganizationId(), versionId, request.Name, request.StateType, request.Configuration, cancellationToken);
+            GetOrganizationId(), versionId, request.Name, request.StateType, request.Configuration, request.AssignmentRules, request.ApproverUserIds, cancellationToken);
         return Ok(new WorkflowStateResponse(state.Id, state.WorkflowVersionId, state.Name, state.StateType));
     }
 
@@ -200,6 +225,7 @@ public sealed class WorkflowController : ControllerBase
             request.DocumentId,
             _currentUser.UserId,
             request.CorrelationId ?? HttpContext.TraceIdentifier,
+            _currentUser.Roles,
             cancellationToken);
 
         var response = ToResponse(instance);
@@ -347,7 +373,7 @@ public sealed class WorkflowController : ControllerBase
 public sealed record WorkflowSummary(Guid Id, string Code, string Name, WorkflowStatus Status, int? PublishedVersion);
 public sealed record CreateWorkflowRequest(string Code, string Name, string? Description);
 public sealed record WorkflowVersionResponse(Guid Id, Guid WorkflowId, int Version, bool IsPublished);
-public sealed record AddStateRequest(string Name, StateType StateType, Dictionary<string, string>? Configuration);
+public sealed record AddStateRequest(string Name, StateType StateType, Dictionary<string, string>? Configuration, IReadOnlyList<AssignmentRule>? AssignmentRules, IReadOnlyList<Guid>? ApproverUserIds);
 public sealed record AddTransitionRequest(Guid FromStateId, Guid ToStateId, TransitionGuard? Guard, int Order = 0, string TriggerType = "complete");
 public sealed record WorkflowStateResponse(Guid Id, Guid WorkflowVersionId, string Name, StateType StateType);
 public sealed record WorkflowTransitionResponse(Guid Id, Guid WorkflowVersionId, Guid FromStateId, Guid ToStateId, int Order);
@@ -359,3 +385,4 @@ public sealed record WorkflowInstanceResponse(Guid Id, Guid WorkflowId, int Work
 public sealed record ApprovalTaskResponse(Guid Id, Guid WorkflowInstanceId, Guid StateId, ApprovalStatus Status, Guid AssignedToUserId, DateTime? DeadlineAt);
 public sealed record WorkflowHistoryResponse(Guid Id, HistoryEventType EventType, Guid? StateId, Guid? ApprovalTaskId, Guid? UserId, string Description, DateTime EventAt);
 public sealed record WorkflowValidationResponse(bool IsValid, IReadOnlyList<string> Errors);
+public sealed record WorkflowGraphResponse(IReadOnlyList<WorkflowStateResponse> States, IReadOnlyList<WorkflowTransitionResponse> Transitions);

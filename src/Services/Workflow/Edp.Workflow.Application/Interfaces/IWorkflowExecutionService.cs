@@ -10,6 +10,7 @@ public interface IWorkflowExecutionService
         Guid documentId,
         Guid actorUserId,
         string correlationId,
+        IReadOnlyCollection<string>? actorRoles = null,
         CancellationToken cancellationToken = default);
 
     Task<ApprovalTask> ApproveAsync(

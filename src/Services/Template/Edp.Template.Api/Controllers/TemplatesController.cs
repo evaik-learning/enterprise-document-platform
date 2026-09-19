@@ -161,8 +161,7 @@ public sealed class TemplatesController : ControllerBase
 
     private Guid RequireOrganization()
     {
-        return new Guid("405DBA4E-F150-45CB-B4C2-B3B75713B2EF");
-        //return _currentOrganization.OrganizationId
-        //    ?? throw new Edp.Shared.Infrastructure.Exceptions.ForbiddenProblemDetailsException("An organization context is required to access templates.");
+        return _currentOrganization.OrganizationId
+            ?? throw new Edp.Shared.Infrastructure.Exceptions.ForbiddenProblemDetailsException("An organization context is required to access templates.");
     }
 }

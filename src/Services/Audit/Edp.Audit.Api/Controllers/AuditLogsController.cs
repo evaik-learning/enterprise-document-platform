@@ -40,19 +40,19 @@ public sealed class AuditLogsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AuditLog>>> Search([FromQuery] Guid organizationId, [FromQuery] string? entityType, [FromQuery] Guid? entityId, [FromQuery] string? action, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<AuditLogResponse>>> Search([FromQuery] Guid organizationId, [FromQuery] string? entityType, [FromQuery] Guid? entityId, [FromQuery] string? action, [FromQuery] string? correlationId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
     {
         RequireOrganization(organizationId);
-        var logs = await _auditLogService.SearchAsync(organizationId, entityType, entityId, action, from, to, page, pageSize, cancellationToken);
-        return Ok(logs);
+        var logs = await _auditLogService.SearchAsync(organizationId, entityType, entityId, action, correlationId, from, to, page, pageSize, cancellationToken);
+        return Ok(logs.Select(ToResponse));
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<AuditLog>> Get(Guid id, [FromQuery] Guid organizationId, CancellationToken cancellationToken)
+    public async Task<ActionResult<AuditLogResponse>> Get(Guid id, [FromQuery] Guid organizationId, CancellationToken cancellationToken)
     {
         RequireOrganization(organizationId);
         var log = await _auditLogService.GetByIdAsync(organizationId, id, cancellationToken);
-        return log is null ? NotFound() : Ok(log);
+        return log is null ? NotFound() : Ok(ToResponse(log));
     }
 
     [HttpPost]
@@ -79,4 +79,35 @@ public sealed class AuditLogsController : ControllerBase
             throw new ForbiddenProblemDetailsException("The requested organization is not accessible.", "AUDIT_ORGANIZATION_FORBIDDEN");
         return organizationId;
     }
+
+    private static AuditLogResponse ToResponse(AuditLog log) => new(
+        log.Id,
+        log.Action,
+        log.EntityType,
+        log.EntityId,
+        log.UserId,
+        log.Timestamp,
+        log.CorrelationId,
+        log.Metadata
+            .Where(pair => !IsSensitiveKey(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value));
+
+    private static bool IsSensitiveKey(string key) =>
+        key.Contains("secret", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("token", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("password", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("credential", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("authorization", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("documentcontent", StringComparison.OrdinalIgnoreCase)
+        || key.Contains("ipaddress", StringComparison.OrdinalIgnoreCase);
+
+    public sealed record AuditLogResponse(
+        Guid Id,
+        string Action,
+        string EntityType,
+        Guid EntityId,
+        Guid? UserId,
+        DateTimeOffset Timestamp,
+        string CorrelationId,
+        IReadOnlyDictionary<string, object?> Metadata);
 }

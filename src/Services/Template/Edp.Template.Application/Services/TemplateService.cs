@@ -60,12 +60,12 @@ public sealed class TemplateService : ITemplateService
         var template = global::Edp.Template.Domain.Entities.Template.Create(Guid.NewGuid(), organizationId, command.Name, normalizedCode, command.Description, userId);
 
         await _templates.AddAsync(template, cancellationToken);
-        //await PublishAndClearAsync(template, cancellationToken);
-        //await _auditLogger.RecordAsync(organizationId, userId, "Create", "Template", template.Id, new Dictionary<string, object?>
-        //{
-        //    ["code"] = template.Code,
-        //    ["name"] = template.Name
-        //}, cancellationToken);
+        await PublishAndClearAsync(template, cancellationToken);
+        await _auditLogger.RecordAsync(organizationId, userId, "Create", "Template", template.Id, new Dictionary<string, object?>
+        {
+            ["code"] = template.Code,
+            ["name"] = template.Name
+        }, cancellationToken);
 
         return ToDto(template);
     }

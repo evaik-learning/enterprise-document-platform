@@ -17,6 +17,9 @@ public sealed class NotificationService : INotificationService
     public Task<IReadOnlyList<NotificationEntity>> ListAsync(Guid organizationId, Guid userId, bool unreadOnly, int page, int pageSize, CancellationToken cancellationToken = default) =>
         _repository.ListAsync(organizationId, userId, unreadOnly, Math.Max(1, page), Math.Clamp(pageSize, 1, 100), cancellationToken);
 
+    public Task<int> CountUnreadAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default) =>
+        _repository.CountUnreadAsync(organizationId, userId, cancellationToken);
+
     public Task<NotificationEntity?> GetAsync(Guid organizationId, Guid userId, Guid id, CancellationToken cancellationToken = default) =>
         _repository.GetAsync(organizationId, userId, id, cancellationToken);
 

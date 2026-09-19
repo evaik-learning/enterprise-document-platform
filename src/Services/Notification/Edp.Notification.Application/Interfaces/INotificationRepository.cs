@@ -13,6 +13,8 @@ public interface INotificationRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<int> CountUnreadAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default);
+
     Task<NotificationEntity?> GetAsync(Guid organizationId, Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsForSourceEventAsync(Guid organizationId, Guid userId, Guid sourceEventId, NotificationChannel channel, CancellationToken cancellationToken = default);
     Task AddAsync(NotificationEntity notification, CancellationToken cancellationToken = default);

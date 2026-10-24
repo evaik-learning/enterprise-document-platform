@@ -4,6 +4,8 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Edp.Gateway.Configuration;
 using Edp.Gateway.Security;
+using Edp.Gateway.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.RateLimiting;
@@ -70,6 +72,8 @@ public static class ServiceCollectionExtensions
                 options.LoginPath = "/bff/auth/login";
                 options.LogoutPath = "/bff/auth/logout";
                 options.AccessDeniedPath = "/bff/auth/access-denied";
+                options.Events.OnRedirectToLogin = context => RejectApiRequest(context, StatusCodes.Status401Unauthorized);
+                options.Events.OnRedirectToAccessDenied = context => RejectApiRequest(context, StatusCodes.Status403Forbidden);
             });
 
         if (hasValidOidcConfig)
@@ -88,6 +92,17 @@ public static class ServiceCollectionExtensions
                 options.MapInboundClaims = false;
                 options.TokenValidationParameters.NameClaimType = "name";
                 options.TokenValidationParameters.RoleClaimType = ClaimTypes.Role;
+                options.Events.OnRedirectToIdentityProvider = context =>
+                {
+                    if (IsApiRequest(context.Request))
+                    {
+                        // XHR callers need a 401 they can act on, not a redirect to the identity provider.
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.HandleResponse();
+                    }
+
+                    return Task.CompletedTask;
+                };
 
                 var scopes = entraIdOptions.Scopes ?? Array.Empty<string>();
                 options.Scope.Clear();
@@ -150,7 +165,40 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(gatewayOptions.ServiceCommunication.TimeoutSeconds);
         });
 
+        services.AddScoped<IDownstreamApiClient, DownstreamApiClient>();
+        services.AddScoped<WorkflowContextLoader>();
+
         return services;
+    }
+
+    public static IServiceCollection AddGatewayCors(this IServiceCollection services, IConfiguration configuration)
+    {
+        var frontend = configuration.GetSection(GatewayOptions.SectionName).Get<GatewayOptions>()?.FrontendBaseUrl;
+        services.AddCors(options => options.AddPolicy(CorsPolicyName, policy =>
+        {
+            if (Uri.TryCreate(frontend, UriKind.Absolute, out var origin))
+            {
+                policy.WithOrigins(origin.GetLeftPart(UriPartial.Authority))
+                    .AllowCredentials()
+                    .AllowAnyMethod()
+                    .WithHeaders("Content-Type", "Accept", "X-Requested-With", "X-CSRF-TOKEN", "Idempotency-Key", "X-Correlation-ID")
+                    .WithExposedHeaders("X-Correlation-ID", "Content-Disposition");
+            }
+        }));
+        return services;
+    }
+
+    public const string CorsPolicyName = "Frontend";
+
+    private static bool IsApiRequest(HttpRequest request) =>
+        request.Path.StartsWithSegments("/api")
+        || (request.Path.StartsWithSegments("/bff") && !request.Path.StartsWithSegments("/bff/auth"));
+
+    private static Task RejectApiRequest(RedirectContext<CookieAuthenticationOptions> context, int statusCode)
+    {
+        if (IsApiRequest(context.Request)) context.Response.StatusCode = statusCode;
+        else context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
     }
 
     public static IServiceCollection AddGatewayObservability(this IServiceCollection services)

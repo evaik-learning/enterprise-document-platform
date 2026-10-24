@@ -1,65 +1,103 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { ApiError } from '../../services/apiClient';
-import { items, platformApi, type DocumentDetail, type DocumentSummary, type Placeholder, type Template, type TemplateVersion, type Workflow } from '../../services/platformApi';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
+import type { DocumentSummary } from '../../api/contracts';
+import { documentApi } from '../../api/endpoints';
+import { toUserMessage } from '../../api/errors';
+import { useDocuments } from '../../api/hooks/useDocuments';
+import { useTemplates } from '../../api/hooks/useTemplates';
+import { Permissions } from '../../auth/permissions';
+import { PermissionGate } from '../../auth/PermissionGate';
+import { Alert, EmptyState, ErrorState } from '../../components/feedback/Feedback';
+import { useToast } from '../../components/feedback/Toast';
+import { SelectField, TextField } from '../../components/forms/Fields';
+import { DataTable, type Column } from '../../components/tables/DataTable';
+import { Pagination } from '../../components/tables/Pagination';
+import { StatusBadge } from '../../components/ui/Badge';
+import { Button, ButtonLink } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/Card';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useUrlListState } from '../../hooks/useUrlListState';
+import { saveBlob } from '../../utils/download';
+import { formatDateTime } from '../../utils/format';
 
-const transientStatuses = new Set(['queued', 'processing', 'generating']);
-const statusStyles: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700', queued: 'bg-amber-50 text-amber-800', processing: 'bg-sky-50 text-sky-800',
-  completed: 'bg-emerald-50 text-emerald-800', failed: 'bg-red-50 text-red-800', archived: 'bg-slate-100 text-slate-500'
-};
+const STATUSES = ['Requested', 'Generating', 'Generated', 'Failed', 'InReview', 'PendingApproval', 'Approved', 'Rejected', 'PendingSignature', 'Signed', 'Completed', 'Archived', 'Cancelled'];
+const DOWNLOADABLE = new Set(['Generated', 'InReview', 'PendingApproval', 'Approved', 'PendingSignature', 'Signed', 'Completed']);
 
 export function DocumentsPage() {
-  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [status, setStatus] = useState('');
-  const [templateId, setTemplateId] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const load = async () => {
-    setLoading(true); setError('');
-    try {
-      const query = `?page=1&pageSize=25${status ? `&status=${encodeURIComponent(status)}` : ''}${templateId ? `&templateId=${encodeURIComponent(templateId)}` : ''}`;
-      const [documentsResult, templatesResult] = await Promise.all([platformApi.documents.list(query), platformApi.templates.list('?status=Active')]);
-      setDocuments(items(documentsResult)); setTemplates(items(templatesResult));
-    } catch (e) { setError(e instanceof ApiError ? e.message : 'Documents could not be loaded.'); }
-    finally { setLoading(false); }
+  const url = useUrlListState();
+  const toast = useToast();
+  const [searchText, setSearchText] = useState(url.get('search'));
+  const debounced = useDebouncedValue(searchText);
+  const search = url.get('search');
+  const status = url.get('status');
+  const templateId = url.get('templateId');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { if (debounced !== search) url.update({ search: debounced || null }); }, [debounced]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const query = useDocuments({ search: search || undefined, status: status || undefined, templateId: templateId || undefined, page: url.page, pageSize: url.pageSize });
+  const templates = useTemplates({ page: 1, pageSize: 100 });
+  const templateName = (id: string) => templates.data?.items.find((template) => template.id === id)?.name ?? '—';
+
+  const download = async (document: DocumentSummary) => {
+    setError(null);
+    try { saveBlob(await documentApi.download(document.id), `${document.name}.docx`); toast.success('Download started.'); } catch (cause) { setError(toUserMessage(cause)); }
   };
-  useEffect(() => { void load(); }, [status, templateId]);
-  return <section className="space-y-6">
-    <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-teal-700">Work queue</p><h2 className="text-3xl font-semibold tracking-tight">Documents</h2><p className="mt-1 text-sm text-slate-600">Create, generate, review and download organization documents.</p></div><Link to="/documents/new" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Create document</Link></div>
-    <div className="flex flex-wrap gap-2"><select aria-label="Filter documents by status" value={status} onChange={e => setStatus(e.target.value)} className="control"><option value="">All statuses</option>{['Draft', 'Queued', 'Processing', 'Completed', 'Failed', 'Archived'].map(value => <option key={value}>{value}</option>)}</select><select aria-label="Filter documents by template" value={templateId} onChange={e => setTemplateId(e.target.value)} className="control"><option value="">All templates</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select><button type="button" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium" onClick={() => void load()}>Refresh</button></div>
-    {error && <Alert message={error} onRetry={() => void load()} />}
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Document</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Version</th><th className="px-5 py-3">Created</th></tr></thead><tbody className="divide-y divide-slate-100">{loading ? <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-500">Loading documents...</td></tr> : documents.length === 0 ? <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-500">No documents match these filters. Start with an active template.</td></tr> : documents.map(document => <tr key={document.id} className="hover:bg-slate-50"><td className="px-5 py-4"><Link to={`/documents/${document.id}`} className="font-semibold text-teal-700 hover:underline">{document.name}</Link><p className="text-xs text-slate-500">{document.documentType}</p></td><td className="px-5 py-4"><StatusChip status={document.status} /></td><td className="px-5 py-4">v{document.currentVersionNumber}</td><td className="px-5 py-4 text-slate-500">{formatDate(document.createdAt)}</td></tr>)}</tbody></table></div>
-  </section>;
-}
 
-export function CreateDocumentPage() {
-  const navigate = useNavigate();
-  const [templates, setTemplates] = useState<Template[]>([]); const [templateId, setTemplateId] = useState(''); const [version, setVersion] = useState<TemplateVersion>(); const [name, setName] = useState(''); const [description, setDescription] = useState(''); const [data, setData] = useState<Record<string, unknown>>({}); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  useEffect(() => { platformApi.templates.list('?status=Active').then(result => setTemplates(items(result))).catch(() => setError('Active templates could not be loaded.')); }, []);
-  const choose = async (id: string) => { setTemplateId(id); setVersion(undefined); setData({}); setError(''); if (!id) return; try { const versions = await platformApi.templates.versions(id); const selected = versions.find(candidate => candidate.status.toLowerCase() === 'active' && !['notvalidated', 'invalid', 'failed'].includes(candidate.validationStatus.toLowerCase().replace(/\s/g, ''))); if (!selected) throw new Error('This template has no active, validated version.'); setVersion(selected); setData(Object.fromEntries(selected.placeholders.map(placeholder => [placeholder.name, initialValue(placeholder)]))); } catch (e) { setError(e instanceof ApiError || e instanceof Error ? e.message : 'Template version could not be loaded.'); } };
-  const submit = async (event: FormEvent) => { event.preventDefault(); if (!version) { setError('Choose an active, validated template version.'); return; } setBusy(true); setError(''); try { const document = await platformApi.documents.create({ name, description, documentType: 'Contract', templateId, templateVersion: version.versionNumber, data }); navigate(`/documents/${document.id}`); } catch (e) { setError(e instanceof ApiError ? e.message : 'Document could not be created.'); } finally { setBusy(false); } };
-  return <section className="mx-auto max-w-3xl space-y-6"><Link to="/documents" className="text-sm font-medium text-teal-700 hover:underline">Back to documents</Link><div><p className="text-sm font-medium text-teal-700">New document</p><h2 className="text-3xl font-semibold tracking-tight">Create from a template</h2><p className="mt-1 text-sm text-slate-600">Create the draft first. Generation is an explicit step on the document detail page.</p></div>{error && <Alert message={error} />}<form onSubmit={submit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><div className="grid gap-4 sm:grid-cols-2"><Field label="Document name"><input required value={name} onChange={e => setName(e.target.value)} className="control" /></Field><Field label="Template"><select required value={templateId} onChange={e => void choose(e.target.value)} className="control"><option value="">Select an active template</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name} ({template.code})</option>)}</select></Field></div><Field label="Description"><textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="control" /></Field>{version && <div className="space-y-4 border-t border-slate-200 pt-5"><div><h3 className="font-semibold">Version {version.versionNumber} values</h3><p className="text-sm text-slate-500">Only values entered here are sent to the document service.</p></div>{version.placeholders.map(placeholder => <PlaceholderField key={placeholder.name} placeholder={placeholder} value={data[placeholder.name]} onChange={value => setData(previous => ({ ...previous, [placeholder.name]: value }))} />)}</div>}<div className="flex justify-end gap-3 border-t border-slate-200 pt-5"><Link to="/documents" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">Cancel</Link><button disabled={busy || !version} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Creating...' : 'Create draft'}</button></div></form></section>;
-}
+  const columns: Column<DocumentSummary>[] = [
+    { key: 'name', header: 'Document', cell: (d) => <span><Link to={`/documents/${d.id}`} className="font-semibold text-teal-900 hover:underline">{d.name}</Link><span className="block text-xs text-slate-600">{d.documentType}</span></span> },
+    { key: 'template', header: 'Template', cell: (d) => templateName(d.templateId) },
+    { key: 'version', header: 'Version', cell: (d) => `v${d.currentVersionNumber}`, hideOnCard: true },
+    { key: 'status', header: 'Status', cell: (d) => <StatusBadge status={d.status} /> },
+    { key: 'created', header: 'Created', cell: (d) => formatDateTime(d.createdAt) },
+    {
+      key: 'actions', header: 'Actions', srOnlyHeader: true, className: 'text-right',
+      cell: (d) => (
+        <span className="inline-flex gap-1">
+          <ButtonLink size="sm" variant="ghost" to={`/documents/${d.id}`} aria-label={`Open ${d.name}`}>Open</ButtonLink>
+          {DOWNLOADABLE.has(d.status) && <Button size="sm" variant="ghost" aria-label={`Download ${d.name}`} onClick={() => void download(d)}>Download</Button>}
+        </span>
+      )
+    }
+  ];
 
-export function DocumentDetailPage() {
-  const { documentId = '' } = useParams(); const [document, setDocument] = useState<DocumentDetail>(); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
-  const load = async () => { if (!documentId) return undefined; try { const next = await platformApi.documents.get(documentId); setDocument(next); return next; } catch (e) { setError(e instanceof ApiError ? e.message : 'Document could not be loaded.'); return undefined; } finally { setLoading(false); } };
-  useEffect(() => { let cancelled = false; const run = async () => { const started = Date.now(); const delays = [2000, 3000, 5000, 10000, 15000]; let current = await load(); let attempt = 0; while (!cancelled && current && transientStatuses.has(current.status.toLowerCase()) && Date.now() - started < 120000) { await new Promise(resolve => window.setTimeout(resolve, delays[Math.min(attempt++, delays.length - 1)])); if (!cancelled) current = await load(); } }; void run(); return () => { cancelled = true; }; }, [documentId]);
-  const generate = async () => { if (!document) return; setBusy(true); setMessage(''); try { const result = await platformApi.documents.generate(document.id, { name: document.name, outputFormats: ['DOCX', 'PDF'], data: document.data }); setMessage(`${result.status}: ${result.message}`); await load(); } catch (e) { setMessage(e instanceof ApiError ? e.message : 'Generation could not be started.'); } finally { setBusy(false); } };
-  const download = async (fileType?: string) => { if (!document) return; try { const result = await platformApi.documents.download(document.id, fileType); const url = URL.createObjectURL(result.blob); const anchor = window.document.createElement('a'); anchor.href = url; anchor.download = result.fileName ?? `${document.name}.${fileType?.toLowerCase() ?? 'docx'}`; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); } catch (e) { setMessage(e instanceof ApiError ? e.message : 'The file could not be downloaded.'); } };
-  if (loading) return <section className="space-y-4"><Link to="/documents" className="text-sm text-teal-700 hover:underline">Back to documents</Link><p className="text-slate-500">Loading document...</p></section>;
-  if (!document) return <section className="space-y-4"><Link to="/documents" className="text-sm text-teal-700 hover:underline">Back to documents</Link><Alert message={error || 'Document not found.'} onRetry={() => void load()} /></section>;
-  const transient = transientStatuses.has(document.status.toLowerCase());
-  return <section className="space-y-6"><Link to="/documents" className="text-sm font-medium text-teal-700 hover:underline">Back to documents</Link><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm text-slate-500">{document.documentType}</p><h2 className="text-3xl font-semibold tracking-tight">{document.name}</h2><p className="mt-1 text-sm text-slate-600">Created {formatDate(document.createdAt)}{document.description ? ` · ${document.description}` : ''}</p></div><StatusChip status={document.status} /></div>{error && <Alert message={error} onRetry={() => void load()} />}{message && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">{message}</p>}<div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]"><div className="space-y-6"><section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-semibold">Generation</h3><p className="mt-1 text-sm text-slate-500">{transient ? 'Generation is running. This page refreshes automatically for up to two minutes.' : 'Generate a new document version from the saved values.'}</p>{['draft', 'failed'].includes(document.status.toLowerCase()) && <button disabled={busy} onClick={() => void generate()} className="mt-4 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Starting...' : document.status.toLowerCase() === 'failed' ? 'Retry generation' : 'Generate document'}</button>}</section><section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-semibold">Generated files</h3>{document.versions.length === 0 ? <p className="mt-3 text-sm text-slate-500">No generated files yet.</p> : <div className="mt-3 space-y-2">{document.versions.flatMap(version => version.files.map(file => <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3"><div><p className="font-medium">{file.fileName}</p><p className="text-xs text-slate-500">Version {version.versionNumber} · {formatBytes(file.size)}</p></div><button type="button" onClick={() => void download(file.fileType)} className="rounded border border-slate-300 px-3 py-1.5 text-sm font-semibold">Download</button></div>))}</div>}</section></div><div className="space-y-6"><WorkflowPanel documentId={document.id} enabled={document.status.toLowerCase() === 'completed'} /><section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-semibold">Document data</h3><dl className="mt-3 space-y-2 text-sm">{Object.entries(document.data).map(([key, value]) => <div key={key} className="flex justify-between gap-4 border-b border-slate-100 pb-2"><dt className="text-slate-500">{key}</dt><dd className="text-right font-medium">{String(value ?? '') || '-'}</dd></div>)}</dl></section></div></div></section>;
-}
+  const filtered = !!(search || status || templateId);
 
-function WorkflowPanel({ documentId, enabled }: { documentId: string; enabled: boolean }) { const [workflows, setWorkflows] = useState<Workflow[]>([]); const [workflowId, setWorkflowId] = useState(''); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); useEffect(() => { platformApi.workflows.list().then(setWorkflows).catch(() => setMessage('Published workflows could not be loaded.')); }, []); const start = async () => { if (!enabled || !workflowId) return; setBusy(true); try { const instance = await platformApi.workflows.instances(workflowId, documentId); setMessage(`Workflow started: ${instance.id}`); } catch (e) { setMessage(e instanceof ApiError ? e.message : 'Workflow could not be started.'); } finally { setBusy(false); } }; return <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-lg font-semibold">Workflow</h3><p className="mt-1 text-sm text-slate-500">{enabled ? 'Start a published workflow after generation.' : 'Workflow actions become available after generation completes.'}</p><div className="mt-3 flex flex-wrap gap-2"><select disabled={!enabled} aria-label="Published workflow" value={workflowId} onChange={e => setWorkflowId(e.target.value)} className="control min-w-0 flex-1"><option value="">Select workflow</option>{workflows.filter(workflow => workflow.publishedVersion).map(workflow => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}</select><button disabled={!enabled || !workflowId || busy} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void start()}>Start</button></div>{message && <p className="mt-2 text-sm text-slate-600">{message}</p>}</section>; }
-function PlaceholderField({ placeholder, value, onChange }: { placeholder: Placeholder; value: unknown; onChange: (value: unknown) => void }) { const type = placeholder.dataType.toLowerCase(); const label = `${placeholder.displayName || placeholder.name}${placeholder.isRequired ? ' *' : ''}`; if (type === 'boolean') return <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" checked={Boolean(value)} onChange={e => onChange(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-teal-700" />{label}</label>; const inputType = type === 'number' || type === 'currency' ? 'number' : type === 'date' ? 'date' : type === 'email' ? 'email' : 'text'; return <Field label={label} help={placeholder.description || placeholder.format}><input required={placeholder.isRequired} type={inputType} value={String(value ?? '')} onChange={e => onChange(type === 'number' || type === 'currency' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} className="control" /></Field>; }
-function Field({ label, help, children }: { label: string; help?: string; children: ReactNode }) { return <label className="block text-sm font-medium">{label}{children}{help && <span className="mt-1 block text-xs font-normal text-slate-500">{help}</span>}</label>; }
-function Alert({ message, onRetry }: { message: string; onRetry?: () => void }) { return <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{message}{onRetry && <button type="button" className="ml-2 font-semibold underline" onClick={onRetry}>Retry</button>}</div>; }
-function StatusChip({ status }: { status: string }) { return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[status.toLowerCase()] ?? 'bg-slate-100 text-slate-600'}`}>{status || 'Unknown'}</span>; }
-function initialValue(placeholder: Placeholder) { if (placeholder.defaultValue !== undefined) return placeholder.defaultValue; return placeholder.dataType.toLowerCase() === 'boolean' ? false : ''; }
-function formatDate(value: string) { return new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); }
-function formatBytes(value: number) { return value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`; }
+  return (
+    <>
+      <PageHeader eyebrow="Work queue" title="Documents" description="Generate, review, route for approval and sign organization documents."
+        actions={<PermissionGate permission={Permissions.DocumentGenerate}><ButtonLink variant="primary" to="/documents/new">Generate document</ButtonLink></PermissionGate>} />
+
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <TextField label="Search documents" hideLabel type="search" placeholder="Search by name…" value={searchText} onChange={(event) => setSearchText(event.target.value)} className="min-w-56 flex-1" />
+        <SelectField label="Status" hideLabel value={status} onChange={(event) => url.update({ status: event.target.value })}>
+          <option value="">All statuses</option>
+          {STATUSES.map((value) => <option key={value} value={value}>{value}</option>)}
+        </SelectField>
+        <SelectField label="Template" hideLabel value={templateId} onChange={(event) => url.update({ templateId: event.target.value })}>
+          <option value="">All templates</option>
+          {templates.data?.items.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+        </SelectField>
+        {filtered && <Button variant="ghost" onClick={() => { setSearchText(''); url.update({ search: null, status: null, templateId: null }); }}>Clear filters</Button>}
+      </div>
+
+      {error && <div className="mb-4"><Alert tone="error" onClose={() => setError(null)}>{error}</Alert></div>}
+
+      {query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : (
+        <>
+          <DataTable
+            caption="Documents"
+            columns={columns}
+            rows={query.data?.items ?? []}
+            getRowKey={(d) => d.id}
+            isLoading={query.isPending}
+            isRefreshing={query.isFetching}
+            empty={<EmptyState title={filtered ? 'No documents match your filters' : 'No documents yet'} description={filtered ? undefined : 'Generate your first document from an active template.'}
+              action={!filtered ? <PermissionGate permission={Permissions.DocumentGenerate}><ButtonLink variant="primary" to="/documents/new">Generate document</ButtonLink></PermissionGate> : undefined} />}
+          />
+          {query.data && query.data.items.length > 0 && <Pagination page={query.data.page} pageSize={query.data.pageSize} totalCount={query.data.totalCount} totalPages={query.data.totalPages} hasNextPage={query.data.hasNextPage} itemCount={query.data.items.length} onPageChange={url.setPage} onPageSizeChange={url.setPageSize} disabled={query.isFetching} />}
+        </>
+      )}
+    </>
+  );
+}

@@ -88,14 +88,41 @@ public sealed class DocumentService : IDocumentService
         };
     }
 
-    public async Task<IReadOnlyList<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default)
     {
-        var documents = await _documentRepository.ListAsync(organizationId, cancellationToken);
-        var filtered = documents
-            .Where(x => string.IsNullOrWhiteSpace(request.Status) || x.Status.ToString().Equals(request.Status, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        return filtered.Select(MapSummary).ToList();
+        global::Edp.Document.Domain.Enums.DocumentStatus? status = null;
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            if (!Enum.TryParse<global::Edp.Document.Domain.Enums.DocumentStatus>(request.Status, ignoreCase: true, out var parsed))
+            {
+                throw new DocumentDomainException($"Status '{request.Status}' is invalid.");
+            }
+
+            status = parsed;
+        }
+
+        Guid? templateId = null;
+        if (!string.IsNullOrWhiteSpace(request.TemplateId))
+        {
+            if (!Guid.TryParse(request.TemplateId, out var parsedTemplateId))
+            {
+                throw new DocumentDomainException($"TemplateId '{request.TemplateId}' is invalid.");
+            }
+
+            templateId = parsedTemplateId;
+        }
+
+        var (items, totalCount) = await _documentRepository.ListPageAsync(organizationId, status, templateId, request.Search, page, pageSize, cancellationToken);
+        return new PagedResponse<DocumentSummaryResponse>
+        {
+            Items = items.Select(MapSummary).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<DocumentGenerationResponse> GenerateAsync(Guid organizationId, Guid documentId, GenerateDocumentRequest request, CancellationToken cancellationToken = default)

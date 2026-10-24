@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationUnitOfWork, NotificationUnitOfWork>();
         services.AddScoped<INotificationInboxRepository, NotificationInboxRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddSharedServiceBusPublisher(configuration, "ServiceBus:NotificationTopic", "notification-events");
         services.AddSingleton<NotificationMessageHandler>();

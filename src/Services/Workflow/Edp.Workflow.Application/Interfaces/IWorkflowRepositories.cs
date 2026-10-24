@@ -40,6 +40,7 @@ public interface IWorkflowInstanceRepository
 {
     Task<WorkflowInstance?> GetByIdAsync(Guid organizationId, Guid instanceId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WorkflowInstance>> ListAsync(Guid organizationId, InstanceStatus? status = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkflowInstance>> ListPageAsync(Guid organizationId, Guid? documentId, InstanceStatus? status, int page, int pageSize, CancellationToken cancellationToken = default);
     Task AddAsync(WorkflowInstance instance, CancellationToken cancellationToken = default);
     Task UpdateAsync(WorkflowInstance instance, CancellationToken cancellationToken = default);
 }

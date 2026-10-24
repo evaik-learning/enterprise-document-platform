@@ -11,7 +11,7 @@ public interface IDocumentService
 {
     Task<DocumentSummaryResponse> CreateAsync(Guid organizationId, CreateDocumentRequest request, CancellationToken cancellationToken = default);
     Task<DocumentDetailResponse?> GetAsync(Guid organizationId, Guid documentId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default);
+    Task<PagedResponse<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default);
     Task<DocumentGenerationResponse> GenerateAsync(Guid organizationId, Guid documentId, GenerateDocumentRequest request, CancellationToken cancellationToken = default);
     Task<DocumentDownload?> DownloadAsync(Guid organizationId, Guid documentId, string? fileType = null, CancellationToken cancellationToken = default);
 }
@@ -33,6 +33,7 @@ public interface IDocumentRepository
 {
     Task<DocumentEntity?> GetByIdAsync(Guid organizationId, Guid documentId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DocumentEntity>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<DocumentEntity> Items, int TotalCount)> ListPageAsync(Guid organizationId, Edp.Document.Domain.Enums.DocumentStatus? status, Guid? templateId, string? search, int page, int pageSize, CancellationToken cancellationToken = default);
     Task AddAsync(DocumentEntity document, CancellationToken cancellationToken = default);
     Task UpdateAsync(DocumentEntity document, CancellationToken cancellationToken = default);
 }

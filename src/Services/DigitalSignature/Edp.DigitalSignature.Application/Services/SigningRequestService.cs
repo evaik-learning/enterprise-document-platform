@@ -44,6 +44,20 @@ public sealed class SigningRequestService : ISigningRequestService
             throw new ArgumentException("At least one signer is required.", nameof(request));
         }
 
+        var documentHash = request.DocumentHash;
+        if (string.IsNullOrWhiteSpace(documentHash))
+        {
+            await using var original = await _documentContentStore.DownloadOriginalAsync(
+                organizationId,
+                request.DocumentId,
+                request.DocumentVersionId,
+                cancellationToken)
+                ?? throw new InvalidOperationException("The original document content could not be found.");
+            using var contentBuffer = new MemoryStream();
+            await original.CopyToAsync(contentBuffer, cancellationToken);
+            documentHash = Convert.ToHexString(SHA256.HashData(contentBuffer.ToArray()));
+        }
+
         var signingRequest = SigningRequest.Create(
             organizationId,
             request.WorkflowInstanceId,
@@ -53,7 +67,7 @@ public sealed class SigningRequestService : ISigningRequestService
             request.Title,
             request.Message,
             request.ExpiresAt,
-            request.DocumentHash,
+            documentHash,
             request.Provider,
             request.CorrelationId == Guid.Empty ? Guid.NewGuid() : request.CorrelationId);
 

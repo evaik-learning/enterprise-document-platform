@@ -51,6 +51,20 @@ public sealed class NotificationsController : ControllerBase
         return Ok(new { count = await _service.CountUnreadAsync(context.OrganizationId, context.UserId, cancellationToken) });
     }
 
+    [HttpGet("preferences")]
+    public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken)
+    {
+        var context = ResolveContext(null, null);
+        return Ok(await _service.GetPreferencesAsync(context.OrganizationId, context.UserId, cancellationToken));
+    }
+
+    [HttpPut("preferences")]
+    public async Task<IActionResult> UpdatePreferences([FromBody] NotificationPreferencesDto request, CancellationToken cancellationToken)
+    {
+        var context = ResolveContext(null, null);
+        return Ok(await _service.UpdatePreferencesAsync(context.OrganizationId, context.UserId, request, cancellationToken));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id, [FromQuery] Guid? organizationId, [FromQuery] Guid? userId, CancellationToken cancellationToken)
     {

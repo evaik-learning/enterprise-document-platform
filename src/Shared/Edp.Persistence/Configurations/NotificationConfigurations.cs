@@ -30,7 +30,18 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         entity.Property(x => x.Subject).IsRequired().HasMaxLength(500);
         entity.Property(x => x.Body).IsRequired().HasMaxLength(4000);
         entity.Property(x => x.CorrelationId).IsRequired().HasMaxLength(200);
+        entity.Property(x => x.ResourceType).HasMaxLength(100);
         entity.HasIndex(x => new { x.OrganizationId, x.UserId, x.CreatedAtUtc });
         entity.HasIndex(x => new { x.SourceEventId, x.UserId, x.Channel }).IsUnique();
+    }
+}
+
+public sealed class NotificationPreferenceConfiguration : IEntityTypeConfiguration<NotificationPreference>
+{
+    public void Configure(EntityTypeBuilder<NotificationPreference> entity)
+    {
+        entity.ToTable("NotificationPreferences", "notification");
+        entity.HasKey(x => x.Id);
+        entity.HasIndex(x => new { x.OrganizationId, x.UserId }).IsUnique();
     }
 }

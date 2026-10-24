@@ -27,6 +27,34 @@ public sealed class DocumentRepository : IDocumentRepository
                 .ToList());
     }
 
+    public async Task<(IReadOnlyList<DocumentEntity> Items, int TotalCount)> ListPageAsync(Guid organizationId, Edp.Document.Domain.Enums.DocumentStatus? status, Guid? templateId, string? search, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Documents.Where(x => x.OrganizationId == organizationId);
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        if (templateId.HasValue)
+        {
+            query = query.Where(x => x.TemplateId == templateId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => x.Name.Contains(term));
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return (items, total);
+    }
+
     public async Task AddAsync(DocumentEntity document, CancellationToken cancellationToken = default)
     {
         await _dbContext.Documents.AddAsync(document, cancellationToken);

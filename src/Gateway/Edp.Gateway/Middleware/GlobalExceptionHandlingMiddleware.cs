@@ -29,12 +29,19 @@ public sealed class GlobalExceptionHandlingMiddleware
             }
 
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            var correlationId = context.Response.Headers.TryGetValue("X-Correlation-ID", out var header) && !string.IsNullOrWhiteSpace(header)
+                ? header.ToString()
+                : context.TraceIdentifier;
+            await context.Response.WriteAsJsonAsync(new
             {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected error occurred.",
-                Detail = "The gateway could not complete the request.",
-                Instance = context.Request.Path
+                code = "GATEWAY_UNEXPECTED_ERROR",
+                message = "The gateway could not complete the request.",
+                correlationId,
+                details = Array.Empty<object>(),
+                status = StatusCodes.Status500InternalServerError,
+                title = "An unexpected error occurred.",
+                detail = "The gateway could not complete the request.",
+                instance = context.Request.Path.Value
             });
         }
     }

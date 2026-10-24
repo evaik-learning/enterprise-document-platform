@@ -18,6 +18,11 @@ namespace Edp.Workflow.Api.Controllers;
 [Route("api/v1/workflows")]
 public sealed class WorkflowController : ControllerBase
 {
+    private static readonly JsonSerializerOptions ReplayJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IWorkflowExecutionService _executionService;
     private readonly IWorkflowDefinitionService _definitionService;
@@ -233,7 +238,7 @@ public sealed class WorkflowController : ControllerBase
         {
             await _idempotencyRepository.AddAsync(new IdempotencyRecord(
                 organizationId, idempotencyKey, requestHash, StatusCodes.Status201Created,
-                JsonSerializer.Serialize(response), DateTimeOffset.UtcNow.AddHours(24)), cancellationToken);
+                JsonSerializer.Serialize(response, ReplayJson), DateTimeOffset.UtcNow.AddHours(24)), cancellationToken);
         }
         return CreatedAtAction(nameof(GetInstance), new { instanceId = instance.Id }, response);
     }
@@ -247,6 +252,29 @@ public sealed class WorkflowController : ControllerBase
     {
         var instance = await instanceRepository.GetByIdAsync(GetOrganizationId(), instanceId, cancellationToken);
         return instance is null ? NotFound() : Ok(ToResponse(instance));
+    }
+
+    [HttpGet("instances")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<IReadOnlyList<WorkflowInstanceResponse>>> ListInstances(
+        [FromQuery] Guid? documentId,
+        [FromQuery] InstanceStatus? status,
+        [FromServices] IWorkflowInstanceRepository instanceRepository,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var instances = await instanceRepository.ListPageAsync(GetOrganizationId(), documentId, status, page, pageSize, cancellationToken);
+        return Ok(instances.Select(ToResponse));
+    }
+
+    [HttpGet("instances/{instanceId:guid}/approval-tasks")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.WorkflowRead)]
+    public async Task<ActionResult<IReadOnlyList<ApprovalTaskResponse>>> InstanceApprovalTasks(Guid instanceId, CancellationToken cancellationToken)
+    {
+        var tasks = await _approvalTaskRepository.ListByInstanceAsync(GetOrganizationId(), instanceId, null, cancellationToken);
+        return Ok(tasks.Select(ToResponse));
     }
 
     [HttpPost("instances/{instanceId:guid}/cancel")]
@@ -309,6 +337,14 @@ public sealed class WorkflowController : ControllerBase
         var tasks = await _approvalTaskRepository.ListForUserPageAsync(
             GetOrganizationId(), _currentUser.UserId, page, pageSize, cancellationToken);
         return Ok(tasks.Select(ToResponse));
+    }
+
+    [HttpGet("approval-tasks/{taskId:guid}")]
+    [Authorize(Policy = WorkflowAuthorizationPolicies.ApprovalRead)]
+    public async Task<ActionResult<ApprovalTaskResponse>> GetApprovalTask(Guid taskId, CancellationToken cancellationToken)
+    {
+        var task = await _approvalTaskRepository.GetByIdAsync(GetOrganizationId(), taskId, cancellationToken);
+        return task is null || task.AssignedToUserId != _currentUser.UserId ? NotFound() : Ok(ToResponse(task));
     }
 
     private (int Page, int PageSize) NormalizePage(int page, int pageSize)

@@ -40,12 +40,19 @@ public sealed class DocumentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? templateId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? templateId, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken cancellationToken = default)
     {
-        var organizationId = RequireOrganization();
-        var request = new ListDocumentsRequest { Status = status, TemplateId = templateId, Page = page, PageSize = pageSize };
-        var documents = await _documentService.ListAsync(organizationId, request, cancellationToken);
-        return Ok(documents);
+        try
+        {
+            var organizationId = RequireOrganization();
+            var request = new ListDocumentsRequest { Status = status, TemplateId = templateId, Search = search, Page = page, PageSize = pageSize };
+            var documents = await _documentService.ListAsync(organizationId, request, cancellationToken);
+            return Ok(documents);
+        }
+        catch (DocumentDomainException ex)
+        {
+            throw MapDocumentException(ex);
+        }
     }
 
     [HttpGet("{documentId:guid}")]

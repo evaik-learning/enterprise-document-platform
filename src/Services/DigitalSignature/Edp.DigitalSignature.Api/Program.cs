@@ -41,7 +41,8 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         // Core services
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
         // Digital Signature Infrastructure (DbContext, repositories, services)
         services.AddDigitalSignatureInfrastructure(Configuration);

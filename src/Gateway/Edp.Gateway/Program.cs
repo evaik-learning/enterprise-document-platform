@@ -15,6 +15,7 @@ builder.Services.AddGatewayApi();
 builder.Services.AddGatewaySecurity(builder.Configuration);
 builder.Services.AddGatewayRateLimiting(builder.Configuration);
 builder.Services.AddGatewayServiceClients();
+builder.Services.AddGatewayCors(builder.Configuration);
 builder.Services.AddGatewayObservability();
 
 var app = builder.Build();
@@ -37,6 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(Edp.Gateway.Extensions.ServiceCollectionExtensions.CorsPolicyName);
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

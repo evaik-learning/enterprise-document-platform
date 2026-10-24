@@ -1,26 +1,140 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ApiError } from '../../services/apiClient';
-import { platformApi, type Workflow, type WorkflowState, type WorkflowTransition, type WorkflowVersion } from '../../services/platformApi';
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import type { Workflow, WorkflowInstance } from '../../api/contracts';
+import { toUserMessage } from '../../api/errors';
+import { useWorkflowDefinitionMutations, useWorkflowInstances, useWorkflows } from '../../api/hooks/useWorkflows';
+import { Permissions } from '../../auth/permissions';
+import { PermissionGate } from '../../auth/PermissionGate';
+import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog';
+import { Dialog } from '../../components/dialogs/Dialog';
+import { Alert, EmptyState, ErrorState } from '../../components/feedback/Feedback';
+import { useToast } from '../../components/feedback/Toast';
+import { FormErrorSummary, SelectField, TextareaField, TextField } from '../../components/forms/Fields';
+import { Tabs } from '../../components/navigation/Tabs';
+import { DataTable, type Column } from '../../components/tables/DataTable';
+import { Pagination } from '../../components/tables/Pagination';
+import { StatusBadge } from '../../components/ui/Badge';
+import { Button, ButtonLink } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/Card';
+import { useUrlListState } from '../../hooks/useUrlListState';
+import { shortId } from '../../utils/format';
 
-const stateTypes = ['Start', 'Task', 'Approval', 'ParallelApprovalAll', 'ParallelApprovalAny', 'End'];
+const CAN_DESIGN = [Permissions.WorkflowExecute, Permissions.OrganizationAdmin] as const;
 
-export function WorkflowsPage() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]); const [selected, setSelected] = useState<Workflow>(); const [versions, setVersions] = useState<WorkflowVersion[]>([]); const [version, setVersion] = useState<WorkflowVersion>(); const [states, setStates] = useState<WorkflowState[]>([]); const [transitions, setTransitions] = useState<WorkflowTransition[]>([]); const [validation, setValidation] = useState<{ isValid: boolean; errors: string[] }>(); const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false); const [showCreate, setShowCreate] = useState(false);
-  const load = async () => { setLoading(true); setError(''); try { setWorkflows(await platformApi.workflows.list('?page=1&pageSize=50')); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflows could not be loaded.'); } finally { setLoading(false); } };
-  useEffect(() => { void load(); }, []);
-  const loadGraph = async (nextVersion?: WorkflowVersion) => { if (!nextVersion) { setStates([]); setTransitions([]); return; } try { const graph = await platformApi.workflows.graph(nextVersion.id); setStates(graph.states); setTransitions(graph.transitions); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow graph could not be loaded.'); } };
-  const open = async (workflow: Workflow) => { setSelected(workflow); setVersion(undefined); setStates([]); setTransitions([]); setValidation(undefined); setError(''); try { const nextVersions = await platformApi.workflows.versions(workflow.id); setVersions(nextVersions); const nextVersion = nextVersions.find(item => !item.isPublished) ?? nextVersions[0]; setVersion(nextVersion); await loadGraph(nextVersion); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow versions could not be loaded.'); } };
-  const newVersion = async () => { if (!selected) return; setBusy(true); setError(''); try { const created = await platformApi.workflows.createVersion(selected.id); const next = { ...created }; setVersions(current => [next, ...current]); setVersion(next); setStates([]); setTransitions([]); setValidation(undefined); } catch (e) { setError(e instanceof ApiError ? e.message : 'A workflow version could not be created.'); } finally { setBusy(false); } };
-  const addState = async (name: string, stateType: number) => { if (!version) return; setBusy(true); setError(''); try { const state = await platformApi.workflows.addState(version.id, { name, stateType }); setStates(current => [...current, state]); setValidation(undefined); } catch (e) { setError(e instanceof ApiError ? e.message : 'State could not be added.'); } finally { setBusy(false); } };
-  const addTransition = async (fromStateId: string, toStateId: string, order: number) => { if (!version || fromStateId === toStateId) return; setBusy(true); setError(''); try { const transition = await platformApi.workflows.addTransition(version.id, { fromStateId, toStateId, order, triggerType: 'complete' }); setTransitions(current => [...current, transition]); setValidation(undefined); } catch (e) { setError(e instanceof ApiError ? e.message : 'Transition could not be added.'); } finally { setBusy(false); } };
-  const validate = async () => { if (!version) return; setBusy(true); setError(''); try { setValidation(await platformApi.workflows.validate(version.id)); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow validation failed.'); } finally { setBusy(false); } };
-  const publish = async () => { if (!selected || !version || !validation?.isValid) return; if (!window.confirm(`Publish workflow version ${version.version}? Existing instances are not changed.`)) return; setBusy(true); try { await platformApi.workflows.publish(selected.id, version.version); await load(); await open(await platformApi.workflows.get(selected.id)); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow could not be published.'); } finally { setBusy(false); } };
-  const archive = async (workflow: Workflow) => { if (!window.confirm(`Archive ${workflow.name}? New instances cannot use an archived workflow.`)) return; setBusy(true); try { await platformApi.workflows.archive(workflow.id); await load(); if (selected?.id === workflow.id) setSelected(undefined); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow could not be archived.'); } finally { setBusy(false); } };
-  return <section className="space-y-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-teal-700">Orchestration</p><h2 className="text-3xl font-semibold">Workflows</h2><p className="mt-1 text-sm text-slate-600">Configure approval definitions, validate them, then publish a version for document instances.</p></div><button className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white" onClick={() => setShowCreate(true)}>New workflow</button></div>{error && <Alert message={error} onRetry={() => void load()} />}<div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Definition</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Published version</th><th className="px-5 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{loading ? <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-500">Loading workflows...</td></tr> : workflows.length === 0 ? <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-500">No workflow definitions yet.</td></tr> : workflows.map(workflow => <tr key={workflow.id}><td className="px-5 py-4"><button className="text-left font-semibold text-teal-700 hover:underline" onClick={() => void open(workflow)}>{workflow.name}</button><p className="text-xs text-slate-500">{workflow.code}</p></td><td className="px-5 py-4"><Status status={workflow.status} /></td><td className="px-5 py-4">{workflow.publishedVersion ?? 'Not published'}</td><td className="px-5 py-4"><div className="flex flex-wrap gap-2"><button className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold" onClick={() => void open(workflow)}>Open</button>{workflow.status.toLowerCase() !== 'archived' && <button disabled={busy} className="rounded border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700" onClick={() => void archive(workflow)}>Archive</button>}</div></td></tr>)}</tbody></table></div>{selected && <WorkflowEditor workflow={selected} versions={versions} version={version} states={states} transitions={transitions} validation={validation} busy={busy} onVersionChange={nextVersion => { setVersion(nextVersion); void loadGraph(nextVersion); }} onNewVersion={() => void newVersion()} onAddState={addState} onAddTransition={addTransition} onValidate={() => void validate()} onPublish={() => void publish()} onClose={() => setSelected(undefined)} />}{showCreate && <CreateWorkflow onClose={() => setShowCreate(false)} onCreated={async () => { setShowCreate(false); await load(); }} />}</section>;
+function CreateWorkflowDialog({ onClose }: { onClose: () => void }) {
+  const { create } = useWorkflowDefinitionMutations();
+  const toast = useToast();
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [errors, setErrors] = useState<string[]>([]);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const found: string[] = [];
+    if (!code.trim()) found.push('Code is required.');
+    else if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(code.trim())) found.push('Code may contain letters, numbers, dashes and underscores only.');
+    if (!name.trim()) found.push('Name is required.');
+    setErrors(found);
+    if (found.length > 0) return;
+    try {
+      await create.mutateAsync({ code: code.trim(), name: name.trim(), description: description.trim() || undefined });
+      toast.success(`Workflow “${name.trim()}” created.`);
+      onClose();
+    } catch (cause) { setServerError(toUserMessage(cause)); }
+  };
+
+  return (
+    <Dialog open onClose={onClose} title="New workflow" description="Create the definition, then add states and transitions and publish a version." dismissible={!create.isPending}
+      footer={<><Button onClick={onClose} disabled={create.isPending}>Cancel</Button><Button variant="primary" loading={create.isPending} onClick={() => void submit()}>Create workflow</Button></>}>
+      <form className="space-y-4" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <FormErrorSummary errors={errors} />
+        {serverError && <Alert tone="error">{serverError}</Alert>}
+        <TextField label="Code" required value={code} onChange={(event) => setCode(event.target.value)} maxLength={100} help="Unique identifier, e.g. CONTRACT-APPROVAL." />
+        <TextField label="Name" required value={name} onChange={(event) => setName(event.target.value)} maxLength={250} />
+        <TextareaField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={1000} />
+      </form>
+    </Dialog>
+  );
 }
 
-function WorkflowEditor({ workflow, versions, version, states, transitions, validation, busy, onVersionChange, onNewVersion, onAddState, onAddTransition, onValidate, onPublish, onClose }: { workflow: Workflow; versions: WorkflowVersion[]; version?: WorkflowVersion; states: WorkflowState[]; transitions: WorkflowTransition[]; validation?: { isValid: boolean; errors: string[] }; busy: boolean; onVersionChange: (version: WorkflowVersion) => void; onNewVersion: () => void; onAddState: (name: string, type: number) => Promise<void>; onAddTransition: (from: string, to: string, order: number) => Promise<void>; onValidate: () => void; onPublish: () => void; onClose: () => void }) { const [stateName, setStateName] = useState(''); const [stateType, setStateType] = useState(1); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [order, setOrder] = useState(0); const add = async (event: FormEvent) => { event.preventDefault(); if (!stateName.trim()) return; await onAddState(stateName.trim(), stateType); setStateName(''); }; const transition = async (event: FormEvent) => { event.preventDefault(); await onAddTransition(from, to, order); setFrom(''); setTo(''); setOrder(0); }; return <section className="space-y-5 rounded-xl border border-teal-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-slate-500">Workflow definition</p><h3 className="text-xl font-semibold">{workflow.name}</h3><p className="text-sm text-slate-600">Configuration uses an accessible state list as the source of truth.</p></div><button className="text-sm text-slate-500" onClick={onClose}>Close</button></div><div className="flex flex-wrap items-end gap-2"><label className="text-sm font-medium">Version<select value={version?.id ?? ''} onChange={event => { const selected = versions.find(item => item.id === event.target.value); if (selected) onVersionChange(selected); }} className="control mt-1"><option value="">Select version</option>{versions.map(item => <option key={item.id} value={item.id}>v{item.version} {item.isPublished ? '(published)' : '(draft)'}</option>)}</select></label><button disabled={!version || busy} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={onNewVersion}>New draft version</button></div>{version && <><div className="grid gap-5 lg:grid-cols-2"><form onSubmit={add} className="space-y-3 rounded-lg border border-slate-200 p-4"><h4 className="font-semibold">Add state</h4><input required value={stateName} onChange={event => setStateName(event.target.value)} placeholder="State name" className="control" /><select value={stateType} onChange={event => setStateType(Number(event.target.value))} className="control">{stateTypes.map((label, index) => <option key={label} value={index}>{label}</option>)}</select><button disabled={busy} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add state</button></form><form onSubmit={transition} className="space-y-3 rounded-lg border border-slate-200 p-4"><h4 className="font-semibold">Add transition</h4><select required value={from} onChange={event => setFrom(event.target.value)} className="control"><option value="">From state</option>{states.map(state => <option key={state.id} value={state.id}>{state.name}</option>)}</select><select required value={to} onChange={event => setTo(event.target.value)} className="control"><option value="">To state</option>{states.map(state => <option key={state.id} value={state.id}>{state.name}</option>)}</select><input type="number" min="0" value={order} onChange={event => setOrder(Number(event.target.value))} className="control" aria-label="Transition order" /><button disabled={busy || !from || !to || from === to} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add transition</button></form></div><div className="grid gap-5 lg:grid-cols-2"><section><h4 className="font-semibold">States ({states.length})</h4>{states.length === 0 ? <p className="mt-2 text-sm text-slate-500">No states loaded in this editing session. The API needs a version graph read endpoint to rehydrate an existing draft.</p> : <ul className="mt-2 space-y-2">{states.map(state => <li key={state.id} className="flex justify-between rounded border border-slate-200 p-3 text-sm"><span>{state.name}</span><span className="text-slate-500">{stateTypes[state.stateType] ?? `Type ${state.stateType}`}</span></li>)}</ul>}</section><section><h4 className="font-semibold">Transitions ({transitions.length})</h4>{transitions.length === 0 ? <p className="mt-2 text-sm text-slate-500">No transitions in this editing session.</p> : <ul className="mt-2 space-y-2">{transitions.map(transition => <li key={transition.id} className="rounded border border-slate-200 p-3 text-sm">{states.find(state => state.id === transition.fromStateId)?.name ?? transition.fromStateId} <span className="mx-2 text-slate-400">→</span> {states.find(state => state.id === transition.toStateId)?.name ?? transition.toStateId}</li>)}</ul>}</section></div><div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4"><button disabled={busy} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold" onClick={onValidate}>Validate version</button><button disabled={busy || !validation?.isValid || version.isPublished} className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={onPublish}>Publish version</button>{validation && <span className={validation.isValid ? 'text-sm text-emerald-700' : 'text-sm text-red-700'}>{validation.isValid ? 'Valid and ready to publish.' : `${validation.errors.length} validation error(s)`}</span>}</div>{validation && !validation.isValid && <ul className="space-y-1 rounded-lg bg-red-50 p-4 text-sm text-red-800">{validation.errors.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>}</>}</section>; }
+function DefinitionsTab() {
+  const query = useWorkflows();
+  const { archive } = useWorkflowDefinitionMutations();
+  const toast = useToast();
+  const [creating, setCreating] = useState(false);
+  const [archiving, setArchiving] = useState<Workflow | null>(null);
 
-function CreateWorkflow({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) { const [code, setCode] = useState(''); const [name, setName] = useState(''); const [description, setDescription] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const submit = async (event: FormEvent) => { event.preventDefault(); setBusy(true); try { await platformApi.workflows.create({ code, name, description }); await onCreated(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Workflow could not be created.'); } finally { setBusy(false); } }; return <div className="fixed inset-0 z-10 grid place-items-center bg-slate-950/40 p-4"><form onSubmit={submit} className="w-full max-w-lg space-y-4 rounded-xl bg-white p-6 shadow-xl"><h3 className="text-xl font-semibold">Create workflow</h3>{error && <Alert message={error} />}<label className="block text-sm font-medium">Name<input required value={name} onChange={e => setName(e.target.value)} className="control mt-1" /></label><label className="block text-sm font-medium">Code<input required value={code} onChange={e => setCode(e.target.value)} className="control mt-1" /></label><label className="block text-sm font-medium">Description<textarea value={description} onChange={e => setDescription(e.target.value)} className="control mt-1" /></label><div className="flex justify-end gap-2"><button type="button" className="rounded border border-slate-300 px-4 py-2 text-sm" onClick={onClose}>Cancel</button><button disabled={busy} className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white">{busy ? 'Creating...' : 'Create workflow'}</button></div></form></div>; }
-function Alert({ message, onRetry }: { message: string; onRetry?: () => void }) { return <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{message}{onRetry && <button className="ml-2 font-semibold underline" onClick={onRetry}>Retry</button>}</p>; }
-function Status({ status }: { status: string }) { return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold">{status}</span>; }
+  const columns: Column<Workflow>[] = [
+    { key: 'name', header: 'Workflow', cell: (w) => <span><Link to={`/workflows/definitions/${w.id}`} className="font-semibold text-teal-900 hover:underline">{w.name}</Link><span className="block text-xs text-slate-600">{w.code}</span></span> },
+    { key: 'status', header: 'Status', cell: (w) => <StatusBadge status={w.status} /> },
+    { key: 'published', header: 'Published version', cell: (w) => (w.publishedVersion ? `v${w.publishedVersion}` : 'None') },
+    {
+      key: 'actions', header: 'Actions', srOnlyHeader: true, className: 'text-right',
+      cell: (w) => (
+        <span className="inline-flex gap-1">
+          <ButtonLink size="sm" variant="ghost" to={`/workflows/definitions/${w.id}`} aria-label={`Open ${w.name}`}>Open</ButtonLink>
+          <PermissionGate permission={CAN_DESIGN} mode="any">{w.status !== 'Archived' && <Button size="sm" variant="ghost" aria-label={`Archive ${w.name}`} onClick={() => setArchiving(w)}>Archive</Button>}</PermissionGate>
+        </span>
+      )
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end"><PermissionGate permission={CAN_DESIGN} mode="any"><Button variant="primary" onClick={() => setCreating(true)}>New workflow</Button></PermissionGate></div>
+      {query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : (
+        <DataTable caption="Workflow definitions" columns={columns} rows={query.data ?? []} getRowKey={(w) => w.id} isLoading={query.isPending} isRefreshing={query.isFetching}
+          empty={<EmptyState title="No workflows yet" description="Create a workflow definition to route documents through review and approval." />} />
+      )}
+      {creating && <CreateWorkflowDialog onClose={() => setCreating(false)} />}
+      <ConfirmDialog open={archiving !== null} title="Archive workflow?" description="Archived workflows can no longer be started. Running instances are not affected." confirmLabel="Archive" danger onClose={() => setArchiving(null)}
+        onConfirm={async () => { if (!archiving) return; await archive.mutateAsync(archiving.id); toast.success('Workflow archived.'); }} />
+    </div>
+  );
+}
+
+const INSTANCE_STATUSES = ['Pending', 'InProgress', 'AwaitingApproval', 'Completed', 'Rejected', 'Cancelled', 'Failed', 'Paused'];
+
+function InstancesTab() {
+  const url = useUrlListState();
+  const status = url.get('status');
+  const query = useWorkflowInstances({ status: status || undefined, page: url.page, pageSize: url.pageSize });
+
+  const columns: Column<WorkflowInstance>[] = [
+    { key: 'id', header: 'Instance', cell: (i) => <Link to={`/workflows/instances/${i.id}`} className="font-semibold text-teal-900 hover:underline">Instance {shortId(i.id)}</Link> },
+    { key: 'status', header: 'Status', cell: (i) => <StatusBadge status={i.status} /> },
+    { key: 'document', header: 'Document', cell: (i) => <Link to={`/documents/${i.documentId}`} className="text-teal-900 underline">Open document</Link> },
+    { key: 'version', header: 'Definition version', cell: (i) => `v${i.workflowVersion}`, hideOnCard: true }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <SelectField label="Status" hideLabel value={status} onChange={(event) => url.update({ status: event.target.value })}>
+        <option value="">All statuses</option>
+        {INSTANCE_STATUSES.map((value) => <option key={value} value={value}>{value}</option>)}
+      </SelectField>
+      {query.isError ? <ErrorState error={query.error} onRetry={() => void query.refetch()} /> : (
+        <>
+          <DataTable caption="Workflow instances" columns={columns} rows={query.data?.items ?? []} getRowKey={(i) => i.id} isLoading={query.isPending} isRefreshing={query.isFetching}
+            empty={<EmptyState title="No workflow instances" description="Start a workflow from a document to see it here." />} />
+          {query.data && query.data.items.length > 0 && <Pagination page={query.data.page} pageSize={query.data.pageSize} hasNextPage={query.data.hasNextPage} itemCount={query.data.items.length} onPageChange={url.setPage} onPageSizeChange={url.setPageSize} disabled={query.isFetching} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function WorkflowsPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') ?? 'definitions';
+  return (
+    <>
+      <PageHeader eyebrow="Automation" title="Workflows" description="Define review and approval flows and follow running instances." />
+      <Tabs label="Workflow sections" value={tab} onChange={(id) => setParams({ tab: id })} tabs={[
+        { id: 'definitions', label: 'Definitions', render: () => <DefinitionsTab /> },
+        { id: 'instances', label: 'Instances', render: () => <InstancesTab /> }
+      ]} />
+    </>
+  );
+}

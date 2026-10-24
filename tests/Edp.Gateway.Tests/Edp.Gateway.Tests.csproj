@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Gateway\Edp.Gateway\Edp.Gateway.csproj" />
     <ProjectReference Include="..\..\src\Shared\Edp.SharedKernel\Edp.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\Shared\Edp.Shared.Security\Edp.Shared.Security.csproj" />
     <ProjectReference Include="..\..\src\Shared\Edp.Shared.Storage\Edp.Shared.Storage.csproj" />

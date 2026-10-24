@@ -293,6 +293,9 @@ public class DocumentDomainTests
         public Task<IReadOnlyList<DocumentEntity>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<DocumentEntity>>(new[] { Document });
 
+        public Task<(IReadOnlyList<DocumentEntity> Items, int TotalCount)> ListPageAsync(Guid organizationId, Edp.Document.Domain.Enums.DocumentStatus? status, Guid? templateId, string? search, int page, int pageSize, CancellationToken cancellationToken = default)
+            => Task.FromResult<(IReadOnlyList<DocumentEntity> Items, int TotalCount)>((new[] { Document }, 1));
+
         public Task AddAsync(DocumentEntity document, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task UpdateAsync(DocumentEntity document, CancellationToken cancellationToken = default)

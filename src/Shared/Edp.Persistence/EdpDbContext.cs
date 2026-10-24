@@ -48,6 +48,7 @@ public sealed class EdpDbContext(DbContextOptions<EdpDbContext> options) : DbCon
     public DbSet<WorkflowInboxMessage> InboxMessages => Set<WorkflowInboxMessage>();
     public DbSet<NotificationInboxMessage> NotificationInboxMessages => Set<NotificationInboxMessage>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public DbSet<OrganizationEntity> Organizations => Set<OrganizationEntity>();
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();

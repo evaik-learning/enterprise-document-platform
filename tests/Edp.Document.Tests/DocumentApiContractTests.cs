@@ -76,6 +76,22 @@ public sealed class DocumentApiContractTests
         Assert.Equal("Offer.pdf", file.FileDownloadName);
     }
 
+    [Fact]
+    public async Task ListReturnsPagedEnvelope()
+    {
+        var service = new FakeDocumentService();
+        var controller = new DocumentsController(service, new CurrentOrganization { OrganizationId = Guid.NewGuid() });
+
+        var result = await controller.List(null, null, null, 2, 10, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var page = Assert.IsType<PagedResponse<DocumentSummaryResponse>>(ok.Value);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(10, page.PageSize);
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal(1, page.TotalPages);
+    }
+
     private sealed class FakeDocumentService : IDocumentService
     {
         public Guid DocumentId { get; } = Guid.NewGuid();
@@ -106,19 +122,25 @@ public sealed class DocumentApiContractTests
                 CreatedAt = DateTimeOffset.UtcNow
             });
 
-        public Task<IReadOnlyList<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<DocumentSummaryResponse>>(new[]
+        public Task<PagedResponse<DocumentSummaryResponse>> ListAsync(Guid organizationId, ListDocumentsRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(new PagedResponse<DocumentSummaryResponse>
             {
-                new DocumentSummaryResponse
+                Page = request.Page,
+                PageSize = request.PageSize,
+                TotalCount = 1,
+                Items = new[]
                 {
-                    Id = DocumentId,
-                    OrganizationId = organizationId,
-                    Name = "Offer",
-                    DocumentType = "Contract",
-                    Status = "Requested",
-                    TemplateId = Guid.NewGuid(),
-                    CurrentVersionNumber = 1,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    new DocumentSummaryResponse
+                    {
+                        Id = DocumentId,
+                        OrganizationId = organizationId,
+                        Name = "Offer",
+                        DocumentType = "Contract",
+                        Status = "Requested",
+                        TemplateId = Guid.NewGuid(),
+                        CurrentVersionNumber = 1,
+                        CreatedAt = DateTimeOffset.UtcNow
+                    }
                 }
             });
 

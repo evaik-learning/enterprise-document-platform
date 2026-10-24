@@ -563,6 +563,13 @@ namespace Edp.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ReadAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("ResourceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ResourceType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<Guid>("SourceEventId")
                         .HasColumnType("uniqueidentifier");
 
@@ -628,6 +635,44 @@ namespace Edp.Persistence.Migrations
                     b.HasIndex("OrganizationId", "ReceivedAtUtc");
 
                     b.ToTable("NotificationInboxMessages", "notification");
+                });
+
+            modelBuilder.Entity("Edp.Notification.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AuditEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("InAppEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("SignatureEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("WorkflowEnabled")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("NotificationPreferences", "notification");
                 });
 
             modelBuilder.Entity("Edp.Organization.Domain.Entities.Organization", b =>
@@ -1428,6 +1473,9 @@ namespace Edp.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ApprovalPolicyJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AssignmentRulesJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Configuration")

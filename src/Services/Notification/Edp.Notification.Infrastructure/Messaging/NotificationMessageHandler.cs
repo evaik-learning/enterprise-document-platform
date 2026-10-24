@@ -98,26 +98,53 @@ public sealed class NotificationMessageHandler : IMessageHandler
             }
 
             var notificationType = envelope.EventType.Replace("Event", string.Empty, StringComparison.OrdinalIgnoreCase);
-            await notificationRepository.AddAsync(
-                NotificationEntity.Create(
-                    envelope.OrganizationId.Value,
-                    recipientId.Value,
-                    notificationType,
-                    notificationType,
-                    $"You have a new {notificationType} notification.",
-                    envelope.EventId,
-                    envelope.CorrelationId?.ToString() ?? envelope.EventId.ToString("N")),
-                cancellationToken);
+            var preferenceRepository = scope.ServiceProvider.GetRequiredService<INotificationPreferenceRepository>();
+            var preference = await preferenceRepository.GetAsync(envelope.OrganizationId.Value, recipientId.Value, cancellationToken);
+            if (preference is null || preference.AllowsInApp(notificationType))
+            {
+                var (resourceType, resourceId) = ResolveResource(envelope.Data);
+                await notificationRepository.AddAsync(
+                    NotificationEntity.Create(
+                        envelope.OrganizationId.Value,
+                        recipientId.Value,
+                        notificationType,
+                        notificationType,
+                        $"You have a new {notificationType} notification.",
+                        envelope.EventId,
+                        envelope.CorrelationId?.ToString() ?? envelope.EventId.ToString("N"),
+                        resourceType: resourceType,
+                        resourceId: resourceId),
+                    cancellationToken);
+            }
         }
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await inbox.MarkProcessedAsync(messageId, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    private static (string? ResourceType, Guid? ResourceId) ResolveResource(object? data)
+    {
+        if (ReadGuid(data, "WorkflowInstanceId") is { } workflowInstanceId) return ("Workflow", workflowInstanceId);
+        if (ReadGuid(data, "SigningRequestId") is { } signingRequestId) return ("Signature", signingRequestId);
+        if (ReadGuid(data, "DocumentId") is { } documentId) return ("Document", documentId);
+        if (ReadGuid(data, "TemplateId") is { } templateId) return ("Template", templateId);
+        return (null, null);
+    }
+
     private static Guid? ReadGuid(object? data, string propertyName)
     {
         if (data is not JsonElement element || element.ValueKind != JsonValueKind.Object) return null;
-        if (!element.TryGetProperty(propertyName, out var property) || !property.TryGetGuid(out var value) || value == Guid.Empty) return null;
-        return value;
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase)
+                && property.Value.ValueKind == JsonValueKind.String
+                && property.Value.TryGetGuid(out var value)
+                && value != Guid.Empty)
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }

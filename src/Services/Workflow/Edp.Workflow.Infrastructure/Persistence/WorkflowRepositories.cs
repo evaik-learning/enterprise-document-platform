@@ -149,6 +149,18 @@ public sealed class WorkflowInstanceRepository : IWorkflowInstanceRepository
         return await query.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<WorkflowInstance>> ListPageAsync(Guid organizationId, Guid? documentId, InstanceStatus? status, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.WorkflowInstances.Where(x => x.OrganizationId == organizationId);
+        if (documentId.HasValue)
+            query = query.Where(x => x.DocumentId == documentId.Value);
+        if (status.HasValue)
+            query = query.Where(x => x.Status == status.Value);
+        return await query.OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(WorkflowInstance instance, CancellationToken cancellationToken = default)
     {
         await _dbContext.WorkflowInstances.AddAsync(instance, cancellationToken);

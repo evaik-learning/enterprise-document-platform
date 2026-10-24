@@ -10,4 +10,6 @@ public interface INotificationService
     Task MarkReadAsync(Guid organizationId, Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task MarkAllReadAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default);
     Task CreateInAppAsync(Guid organizationId, Guid userId, string type, string subject, string body, Guid sourceEventId, string correlationId, CancellationToken cancellationToken = default);
+    Task<NotificationPreferencesDto> GetPreferencesAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default);
+    Task<NotificationPreferencesDto> UpdatePreferencesAsync(Guid organizationId, Guid userId, NotificationPreferencesDto preferences, CancellationToken cancellationToken = default);
 }

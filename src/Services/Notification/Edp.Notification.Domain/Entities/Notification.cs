@@ -32,6 +32,8 @@ public sealed class Notification
     public DateTimeOffset? ReadAtUtc { get; private set; }
     public Guid SourceEventId { get; private set; }
     public string CorrelationId { get; private set; } = string.Empty;
+    public string? ResourceType { get; private set; }
+    public Guid? ResourceId { get; private set; }
 
     public static Notification Create(
         Guid organizationId,
@@ -41,7 +43,9 @@ public sealed class Notification
         string body,
         Guid sourceEventId,
         string correlationId,
-        NotificationChannel channel = NotificationChannel.InApp)
+        NotificationChannel channel = NotificationChannel.InApp,
+        string? resourceType = null,
+        Guid? resourceId = null)
     {
         if (organizationId == Guid.Empty) throw new ArgumentException("Organization is required.", nameof(organizationId));
         if (userId == Guid.Empty) throw new ArgumentException("Recipient is required.", nameof(userId));
@@ -61,7 +65,9 @@ public sealed class Notification
             Status = NotificationStatus.Sent,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             SourceEventId = sourceEventId,
-            CorrelationId = correlationId.Trim()
+            CorrelationId = correlationId.Trim(),
+            ResourceType = string.IsNullOrWhiteSpace(resourceType) || resourceId is null || resourceId == Guid.Empty ? null : resourceType.Trim(),
+            ResourceId = string.IsNullOrWhiteSpace(resourceType) || resourceId is null || resourceId == Guid.Empty ? null : resourceId
         };
     }
 

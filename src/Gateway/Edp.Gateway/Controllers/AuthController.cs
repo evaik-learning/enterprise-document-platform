@@ -22,8 +22,12 @@ public sealed class AuthController : ControllerBase
 
     [HttpGet("login")]
     [AllowAnonymous]
-    public IActionResult Login([FromQuery] string? returnUrl = null)
+    public async Task<IActionResult> Login([FromQuery] string? returnUrl = null, [FromServices] IAuthenticationSchemeProvider? schemes = null)
     {
+        // Without Entra ID configured (local demo mode) the SPA login page offers demo users instead.
+        if (schemes is not null && await schemes.GetSchemeAsync(OpenIdConnectDefaults.AuthenticationScheme) is null)
+            return Redirect($"{_frontendBaseUrl}/login");
+
         var finalReturnUrl = ResolveReturnUrl(returnUrl);
 
         return Challenge(
@@ -36,17 +40,16 @@ public sealed class AuthController : ControllerBase
 
     [HttpGet("logout")]
     [Authorize]
-    public IActionResult Logout([FromQuery] string? returnUrl = null)
+    public async Task<IActionResult> Logout([FromQuery] string? returnUrl = null, [FromServices] IAuthenticationSchemeProvider? schemes = null)
     {
         var finalReturnUrl = ResolveReturnUrl(returnUrl);
+        var properties = new AuthenticationProperties { RedirectUri = finalReturnUrl };
 
-        return SignOut(
-            new AuthenticationProperties
-            {
-                RedirectUri = finalReturnUrl
-            },
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            OpenIdConnectDefaults.AuthenticationScheme);
+        // Local demo sign-in has no identity-provider session to end.
+        if (schemes is not null && await schemes.GetSchemeAsync(OpenIdConnectDefaults.AuthenticationScheme) is null)
+            return SignOut(properties, CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return SignOut(properties, CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     [HttpGet("user")]

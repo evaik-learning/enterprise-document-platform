@@ -35,7 +35,7 @@ public sealed class AuditSubscriptionHostedService : BackgroundService
         await _subscriber.SubscribeAsync("template-events", "audit", handler, stoppingToken);
         await _subscriber.SubscribeAsync("document-events", "audit", handler, stoppingToken);
         await _subscriber.SubscribeAsync("workflow-events", "audit", handler, stoppingToken);
-        await _subscriber.SubscribeAsync("signature-events", "audit", handler, stoppingToken);
+        await _subscriber.SubscribeAsync("signing-events", "audit", handler, stoppingToken);
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }
 }

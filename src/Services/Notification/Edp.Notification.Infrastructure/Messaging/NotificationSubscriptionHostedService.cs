@@ -35,7 +35,7 @@ public sealed class NotificationSubscriptionHostedService : BackgroundService
         await _subscriber.SubscribeAsync("template-events", "notification", handler, stoppingToken);
         await _subscriber.SubscribeAsync("document-events", "notification", handler, stoppingToken);
         await _subscriber.SubscribeAsync("workflow-events", "notification", handler, stoppingToken);
-        await _subscriber.SubscribeAsync("signature-events", "notification", handler, stoppingToken);
+        await _subscriber.SubscribeAsync("signing-events", "notification", handler, stoppingToken);
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }
 }

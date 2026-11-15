@@ -11,10 +11,19 @@ namespace Edp.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Status",
-                schema: "document",
-                table: "OutboxMessages");
+            // Conditional: on a fresh database the document outbox table is created without a Status column
+            // (AddDocumentOutbox), while databases created from earlier builds may still have it.
+            migrationBuilder.Sql(@"
+IF COL_LENGTH(N'[document].[OutboxMessages]', N'Status') IS NOT NULL
+BEGIN
+    DECLARE @var nvarchar(max);
+    SELECT @var = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[document].[OutboxMessages]') AND [c].[name] = N'Status');
+    IF @var IS NOT NULL EXEC(N'ALTER TABLE [document].[OutboxMessages] DROP CONSTRAINT ' + @var + ';');
+    ALTER TABLE [document].[OutboxMessages] DROP COLUMN [Status];
+END");
 
             migrationBuilder.AddColumn<string>(
                 name: "Status",
@@ -24,6 +33,9 @@ namespace Edp.Persistence.Migrations
                 maxLength: 50,
                 nullable: false,
                 defaultValue: "");
+
+            migrationBuilder.EnsureSchema(
+                name: "notification");
 
             migrationBuilder.CreateTable(
                 name: "Notifications",

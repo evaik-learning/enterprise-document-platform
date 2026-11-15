@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { toUserMessage } from '../api/errors';
+import { organizationApi } from '../api/endpoints';
 import { useMyOrganizations } from '../api/hooks/usePlatformQueries';
+import { TextField } from '../components/forms/Fields';
 import { Alert, EmptyState, ErrorState } from '../components/feedback/Feedback';
 import { LoadingSkeleton } from '../components/feedback/LoadingSkeleton';
 import { Button } from '../components/ui/Button';
@@ -16,6 +18,8 @@ export function OrganizationSelectPage() {
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   if (me && !me.requiresOrganizationSelection) return <Navigate to={safeReturnUrl(params.get('returnUrl'))} replace />;
 
@@ -29,6 +33,23 @@ export function OrganizationSelectPage() {
       setError(toUserMessage(cause, 'The organization could not be selected.'));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const create = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const created = await organizationApi.create({ name });
+      await selectOrganization(created.id);
+      void navigate(safeReturnUrl(params.get('returnUrl')), { replace: true });
+    } catch (cause) {
+      setError(toUserMessage(cause, 'The organization could not be created.'));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -54,6 +75,14 @@ export function OrganizationSelectPage() {
             </li>
           ))}
         </ul>
+        <form onSubmit={(event) => void create(event)} className="rounded-xl border border-dashed border-slate-300 bg-white p-4" aria-label="Create organization">
+          <h2 className="text-sm font-semibold">Create a new organization</h2>
+          <p className="mt-1 text-xs text-slate-600">You become its Owner and can then invite members and assign roles.</p>
+          <div className="mt-3 flex items-end gap-3">
+            <TextField className="flex-1" label="Organization name" value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={200} required />
+            <Button type="submit" variant="secondary" loading={creating} disabled={creating || busyId !== null || !newName.trim()}>Create</Button>
+          </div>
+        </form>
         <Button variant="ghost" onClick={logout}>Sign out</Button>
       </div>
     </main>

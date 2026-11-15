@@ -1,27 +1,26 @@
 stages:
 - stage: Build
-  displayName: Build and validate
+  displayName: Build and test
   jobs:
   - job: Backend
-    displayName: Build backend
+    displayName: .NET build, test and dependency audit
     pool:
-      vmImage: ubuntu-latest
+      vmImage: $(vmImage)
     steps:
     - task: UseDotNet@2
       displayName: Install .NET SDK
       inputs:
         packageType: sdk
-        version: $(dotnetSdkVersion)
+        useGlobalJson: true
 
     - script: dotnet restore $(solution)
-      displayName: Restore NuGet packages
+      displayName: Restore
 
     - script: dotnet build $(solution) --configuration $(buildConfiguration) --no-restore
-      displayName: Build solution
+      displayName: Build
 
-    - script: |
-        dotnet test $(solution) --configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/test-results
-      displayName: Run unit tests
+    - script: dotnet test $(solution) --configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/test-results
+      displayName: Unit tests
 
     - task: PublishTestResults@2
       displayName: Publish test results
@@ -29,70 +28,40 @@ stages:
       inputs:
         testResultsFormat: VSTest
         testResultsFiles: '$(Agent.TempDirectory)/test-results/*.trx'
-        failTaskOnFailedTests: false
-
-  - job: TemplateService
-    displayName: Template service checks
-    pool:
-      vmImage: ubuntu-latest
-    steps:
-    - task: UseDotNet@2
-      displayName: Install .NET SDK
-      inputs:
-        packageType: sdk
-        version: $(dotnetSdkVersion)
+        failTaskOnFailedTests: true
 
     - script: |
-        dotnet restore src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj
-        dotnet build src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj --configuration $(buildConfiguration) --no-restore
-      displayName: Build Template API
-
-    - script: |
-        dotnet test tests/Edp.Template.Tests/Edp.Template.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)/template-test-results
-      displayName: Run Template tests
-
-    - script: |
-        dotnet list src/Services/Template/Edp.Template.Api/Edp.Template.Api.csproj package --vulnerable --include-transitive > $(Agent.TempDirectory)/template-vulns.txt 2>&1 || true
-        if grep -Ei "vulnerable|security advisory|advisory" $(Agent.TempDirectory)/template-vulns.txt; then
-          echo "Template dependency vulnerabilities detected. Failing build."
-          cat $(Agent.TempDirectory)/template-vulns.txt
+        dotnet list $(solution) package --vulnerable --include-transitive 2>&1 | tee $(Agent.TempDirectory)/vulnerabilities.txt
+        if grep -q "has the following vulnerable packages" $(Agent.TempDirectory)/vulnerabilities.txt; then
+          echo "##vso[task.logissue type=error]Vulnerable NuGet packages found (see log)."
           exit 1
         fi
-        echo "No vulnerable Template dependencies detected."
-      displayName: Security scan Template dependencies
-      continueOnError: false
-
-    - script: |
-        docker build -f docker/Dockerfile.template.api -t edp-template-api:ci .
-      displayName: Build Template Docker image
-      continueOnError: false
-
-    - task: PublishTestResults@2
-      displayName: Publish Template test results
-      condition: succeededOrFailed()
-      inputs:
-        testResultsFormat: VSTest
-        testResultsFiles: '$(Agent.TempDirectory)/template-test-results/*.trx'
-        failTaskOnFailedTests: false
+      displayName: NuGet vulnerability audit
 
   - job: Frontend
-    displayName: Build frontend
+    displayName: Web lint, type-check, test and build
     pool:
-      vmImage: ubuntu-latest
+      vmImage: $(vmImage)
     steps:
     - task: NodeTool@0
       displayName: Install Node.js
       inputs:
         versionSpec: $(nodeVersion)
 
-    - script: |
-        npm --prefix $(webAppProject) ci
-        npm --prefix $(webAppProject) run build
-      displayName: Build React app
+    - script: npm --prefix $(webAppProject) ci
+      displayName: Install dependencies
 
-    - task: PublishPipelineArtifact@1
-      displayName: Publish frontend artifact
-      inputs:
-        targetPath: '$(webAppProject)/dist'
-        artifact: 'frontend-dist'
-        publishLocation: 'pipeline'
+    - script: npm --prefix $(webAppProject) run lint
+      displayName: Lint
+
+    - script: npm --prefix $(webAppProject) run typecheck
+      displayName: Type-check
+
+    - script: npm --prefix $(webAppProject) run test
+      displayName: Unit and component tests
+
+    - script: npm --prefix $(webAppProject) run build
+      displayName: Production build
+
+    - script: npm --prefix $(webAppProject) audit --omit=dev --audit-level=high
+      displayName: npm vulnerability audit (production dependencies)

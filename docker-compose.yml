@@ -1,158 +1,144 @@
-version: '3.9'
+# Full local stack in containers: SQL Server, Azurite, Service Bus emulator, all services, Gateway and the web app.
+#   docker compose up --build        -> open http://localhost:8080 and sign in with a demo user
+# Local-only defaults below; never reuse them outside a developer machine.
+x-azurite-connection: &azurite "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;"
+
+x-service-env: &service-env
+  ASPNETCORE_ENVIRONMENT: Development
+  ConnectionStrings__EdpDb: "Server=sqlserver;Database=EdpDb;User Id=sa;Password=${SA_PASSWORD:-Edp_Local_Pa55word!};TrustServerCertificate=True;MultipleActiveResultSets=True"
+  ConnectionStrings__SigningDb: "Server=sqlserver;Database=EdpSigningDb;User Id=sa;Password=${SA_PASSWORD:-Edp_Local_Pa55word!};TrustServerCertificate=True"
+  ConnectionStrings__BlobStorage: *azurite
+  ConnectionStrings__Storage: *azurite
+  ConnectionStrings__ServiceBus: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+  Database__ApplyMigrations: "false"
+  Jwt__Key: ${JWT_DEV_KEY:-local-dev-only-signing-key-change-me-0123456789}
+  Jwt__Issuer: edp-local
+  Jwt__Audience: edp-api
+  Jwt__Authority: " "
+
+x-service: &service
+  restart: unless-stopped
+  environment: *service-env
+  depends_on:
+    migrator:
+      condition: service_completed_successfully
+    servicebus-emulator:
+      condition: service_started
+    azurite:
+      condition: service_started
+
+name: edp
 
 services:
-  gateway:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.gateway
-    ports:
-      - "7000:8080"
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-Edp_Local_Pa55word!}
+    volumes: [sqldata:/var/opt/mssql]
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck --loose
+    volumes: [azurite:/data]
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: sqlserver
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-Edp_Local_Pa55word!}
+    volumes:
+      - ./docker/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
     depends_on:
-      - identity-api
-      - organization-api
-      - template-api
-      - document-api
-      - workflow-api
-      - storage-api
-      - notification-api
-      - audit-api
+      sqlserver:
+        condition: service_healthy
 
-  identity-api:
+  migrator:
     build:
       context: .
-      dockerfile: docker/Dockerfile.identity.api
-    ports:
-      - "7001:8080"
+      dockerfile: docker/Dockerfile.migrator
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      EdpDb_Connection: "Server=sqlserver;Database=EdpDb;User Id=sa;Password=${SA_PASSWORD:-Edp_Local_Pa55word!};TrustServerCertificate=True"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
 
-  organization-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.organization.api
-    ports:
-      - "7002:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  identity:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Identity/Edp.Identity.Api/Edp.Identity.Api.csproj, ASSEMBLY: Edp.Identity.Api } }
 
-  template-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.template.api
-    ports:
-      - "7003:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__TemplateDb: "Server=(localdb)\\MSSQLLocalDB;Database=TemplateDb;Trusted_Connection=True;TrustServerCertificate=True;"
-      ConnectionStrings__BlobStorage: "UseDevelopmentStorage=true"
-      ServiceBus__TemplateTopic: "template-events"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  organization:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Organization/Edp.Organization.Api/Edp.Organization.Api.csproj, ASSEMBLY: Edp.Organization.Api } }
 
-  document-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.document.api
-    ports:
-      - "7004:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  template:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Template/Edp.Template.Api/Edp.Template.Api.csproj, ASSEMBLY: Edp.Template.Api } }
 
-  workflow-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.workflow.api
-    ports:
-      - "7005:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  document:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Document/Edp.Document.Api/Edp.Document.Api.csproj, ASSEMBLY: Edp.Document.Api } }
 
-  storage-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.storage.api
-    ports:
-      - "7006:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  workflow:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Workflow/Edp.Workflow.Api/Edp.Workflow.Api.csproj, ASSEMBLY: Edp.Workflow.Api } }
 
-  notification-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.notification.api
-    ports:
-      - "7007:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+  storage:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Storage/Edp.Storage.Api/Edp.Storage.Api.csproj, ASSEMBLY: Edp.Storage.Api } }
 
-  audit-api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.audit.api
-    ports:
-      - "7008:8080"
+  notification:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Notification/Edp.Notification.Api/Edp.Notification.Api.csproj, ASSEMBLY: Edp.Notification.Api } }
+
+  audit:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/Audit/Edp.Audit.Api/Edp.Audit.Api.csproj, ASSEMBLY: Edp.Audit.Api } }
+
+  digital-signature:
+    <<: *service
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Services/DigitalSignature/Edp.DigitalSignature.Api/Edp.DigitalSignature.Api.csproj, ASSEMBLY: Edp.DigitalSignature.Api } }
+
+  gateway:
+    restart: unless-stopped
+    build: { context: ., dockerfile: docker/Dockerfile.service, args: { PROJECT: Gateway/Edp.Gateway/Edp.Gateway.csproj, ASSEMBLY: Edp.Gateway } }
+    ports: ["5200:8080"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      Gateway__FrontendBaseUrl: http://localhost:8080
+      Gateway__PublicBaseUrl: http://localhost:8080
+      # Demo sign-in replaces Entra ID. Refused by the Gateway outside Development.
+      Gateway__DevAuth__Enabled: "true"
+      Gateway__DevAuth__SigningKey: ${JWT_DEV_KEY:-local-dev-only-signing-key-change-me-0123456789}
+      Gateway__DevAuth__Issuer: edp-local
+      Gateway__DevAuth__Audience: edp-api
+      Gateway__ServiceCommunication__DownstreamServices__Identity: http://identity:8080
+      Gateway__ServiceCommunication__DownstreamServices__Organization: http://organization:8080
+      Gateway__ServiceCommunication__DownstreamServices__Template: http://template:8080
+      Gateway__ServiceCommunication__DownstreamServices__Document: http://document:8080
+      Gateway__ServiceCommunication__DownstreamServices__Workflow: http://workflow:8080
+      Gateway__ServiceCommunication__DownstreamServices__Storage: http://storage:8080
+      Gateway__ServiceCommunication__DownstreamServices__Notification: http://notification:8080
+      Gateway__ServiceCommunication__DownstreamServices__Audit: http://audit:8080
+      Gateway__ServiceCommunication__DownstreamServices__DigitalSignature: http://digital-signature:8080
+    depends_on: [identity, organization, template, document, workflow, notification, audit, digital-signature]
 
   web:
-    build:
-      context: ./src/Web/Edp.Web
-      dockerfile: Dockerfile
-    ports:
-      - "5173:80"
-    depends_on:
-      - gateway
+    restart: unless-stopped
+    build: { context: src/Web/Edp.Web, args: { VITE_ENVIRONMENT: local } }
+    environment:
+      GATEWAY_URL: http://gateway:8080
+    ports: ["8080:8080"]
+    depends_on: [gateway]
+
+volumes:
+  sqldata:
+  azurite:

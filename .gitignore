@@ -49,3 +49,6 @@ docker-compose.override.yml
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local non-Docker run state (logs, pids, generated dev signing key, azurite data)
+.local/

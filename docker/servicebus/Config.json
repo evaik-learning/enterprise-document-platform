@@ -1,0 +1,257 @@
+{
+    "UserConfig":  {
+                       "Namespaces":  [
+                                          {
+                                              "Name":  "sbemulatorns",
+                                              "Queues":  [
+
+                                                         ],
+                                              "Topics":  [
+                                                             {
+                                                                 "Name":  "template-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "audit",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "notification",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             },
+                                                             {
+                                                                 "Name":  "document-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "audit",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "notification",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "workflow",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             },
+                                                             {
+                                                                 "Name":  "workflow-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "audit",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "notification",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             },
+                                                             {
+                                                                 "Name":  "signing-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "audit",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "notification",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       },
+                                                                                       {
+                                                                                           "Name":  "workflow",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             },
+                                                             {
+                                                                 "Name":  "audit-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "archive",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             },
+                                                             {
+                                                                 "Name":  "notification-events",
+                                                                 "Properties":  {
+                                                                                    "DefaultMessageTimeToLive":  "PT1H",
+                                                                                    "DuplicateDetectionHistoryTimeWindow":  "PT20S",
+                                                                                    "RequiresDuplicateDetection":  false
+                                                                                },
+                                                                 "Subscriptions":  [
+                                                                                       {
+                                                                                           "Name":  "archive",
+                                                                                           "Properties":  {
+                                                                                                              "DeadLetteringOnMessageExpiration":  false,
+                                                                                                              "DefaultMessageTimeToLive":  "PT1H",
+                                                                                                              "LockDuration":  "PT1M",
+                                                                                                              "MaxDeliveryCount":  10,
+                                                                                                              "ForwardDeadLetteredMessagesTo":  "",
+                                                                                                              "ForwardTo":  "",
+                                                                                                              "RequiresSession":  false
+                                                                                                          },
+                                                                                           "Rules":  [
+
+                                                                                                     ]
+                                                                                       }
+                                                                                   ]
+                                                             }
+                                                         ]
+                                          }
+                                      ],
+                       "Logging":  {
+                                       "Type":  "File"
+                                   }
+                   }
+}

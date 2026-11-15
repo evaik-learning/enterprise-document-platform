@@ -1,9 +1,10 @@
+# Continuous integration: validates every pull request and feature branch. It never deploys.
+# Create the pipeline in Azure DevOps from this file (see pipelines/README.md).
 trigger:
   branches:
     include:
-      - main
-      - develop
       - feature/*
+      - bugfix/*
 
 pr:
   branches:
@@ -12,28 +13,7 @@ pr:
       - develop
 
 variables:
-- template: variables/dev.yml
-- name: dotnetSdkVersion
-  value: '10.x'
-- name: nodeVersion
-  value: '22.x'
-- name: solution
-  value: 'EnterpriseDocumentPlatform.sln'
-- name: webAppProject
-  value: 'src/Web/Edp.Web'
-- name: buildConfiguration
-  value: 'Release'
+- template: variables/common.yml
 
 stages:
 - template: templates/build-and-test.yml
-- template: templates/deploy-azure.yml
-  parameters:
-    environmentName: 'dev'
-    parameterFile: 'infra/dev.bicepparam'
-    # Set the Azure service connection name in your Azure DevOps project.
-    serviceConnection: 'AzureServiceConnection'
-    resourceGroupName: 'rg-edp-platform-dev'
-    location: 'eastus'
-    webAppArtifactPath: '$(Pipeline.Workspace)/frontend-dist'
-    backendImageName: 'edp-gateway'
-    containerRegistry: 'edpacrdev'

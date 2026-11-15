@@ -16,10 +16,16 @@ public sealed class OrganizationService : IOrganizationService
         _repository = repository;
     }
 
-    public async Task<global::Edp.Organization.Domain.Entities.Organization> CreateAsync(CreateOrganizationCommand command, CancellationToken cancellationToken = default)
+    public async Task<global::Edp.Organization.Domain.Entities.Organization> CreateAsync(CreateOrganizationCommand command, Guid creatorUserId, CancellationToken cancellationToken = default)
     {
+        if (creatorUserId == Guid.Empty)
+            throw new ValidationProblemDetailsException("A signed-in user is required to create an organization.", "ORGANIZATION_USER_REQUIRED");
+
         var organization = global::Edp.Organization.Domain.Entities.Organization.Create(Guid.NewGuid(), command.Name, command.Description);
-        return await _repository.AddAsync(organization, cancellationToken);
+        var created = await _repository.AddAsync(organization, cancellationToken);
+        // Without an initial Owner nobody could ever administer the new organization.
+        await _repository.AddMemberAsync(OrganizationMember.Create(Guid.NewGuid(), created.Id, creatorUserId, OrganizationRoles.Owner), cancellationToken);
+        return created;
     }
 
     public Task<global::Edp.Organization.Domain.Entities.Organization?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

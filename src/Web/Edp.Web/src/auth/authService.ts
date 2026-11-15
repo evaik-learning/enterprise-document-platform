@@ -14,6 +14,11 @@ export function redirectToLogin(returnUrl = '/') {
   window.location.assign(`${appConfig.gatewayBaseUrl}/bff/auth/login?returnUrl=${encodeURIComponent(safeReturnUrl(returnUrl))}`);
 }
 
+/** Local-development demo sign-in; the Gateway rejects this endpoint outside Development. */
+export function redirectToDevLogin(userId: string, returnUrl = '/') {
+  window.location.assign(`${appConfig.gatewayBaseUrl}/bff/auth/dev-login?userId=${encodeURIComponent(userId)}&returnUrl=${encodeURIComponent(safeReturnUrl(returnUrl))}`);
+}
+
 export function redirectToLogout() {
   window.location.assign(`${appConfig.gatewayBaseUrl}/bff/auth/logout?returnUrl=${encodeURIComponent('/login')}`);
 }

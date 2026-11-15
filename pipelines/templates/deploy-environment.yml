@@ -1,0 +1,200 @@
+# Deploys one environment end to end: infrastructure -> container images -> database migration + rollout + smoke test.
+# Everything environment-specific comes from the variables file (pipelines/variables/<env>.yml) and infra/<env>.bicepparam.
+parameters:
+- name: environmentName            # dev | prod  (Azure DevOps Environment "edp-<name>" is used; add approvals to it)
+  type: string
+- name: variablesFile              # repo-root-relative path, e.g. /pipelines/variables/dev.yml
+  type: string
+- name: dependsOn
+  type: object
+  default: []
+- name: condition
+  type: string
+  default: succeeded()
+- name: releaseTag                 # image tag to roll out (the build id, or an older tag for rollback)
+  type: string
+- name: skipImageBuild             # true when rolling back to images that already exist in the registry
+  type: boolean
+  default: false
+- name: runWhatIf
+  type: boolean
+  default: true
+- name: images
+  type: object
+  default:
+  - { key: gateway,           project: Gateway/Edp.Gateway/Edp.Gateway.csproj,                                          assembly: Edp.Gateway }
+  - { key: identity,          project: Services/Identity/Edp.Identity.Api/Edp.Identity.Api.csproj,                      assembly: Edp.Identity.Api }
+  - { key: organization,      project: Services/Organization/Edp.Organization.Api/Edp.Organization.Api.csproj,          assembly: Edp.Organization.Api }
+  - { key: template,          project: Services/Template/Edp.Template.Api/Edp.Template.Api.csproj,                      assembly: Edp.Template.Api }
+  - { key: document,          project: Services/Document/Edp.Document.Api/Edp.Document.Api.csproj,                      assembly: Edp.Document.Api }
+  - { key: workflow,          project: Services/Workflow/Edp.Workflow.Api/Edp.Workflow.Api.csproj,                      assembly: Edp.Workflow.Api }
+  - { key: storage,           project: Services/Storage/Edp.Storage.Api/Edp.Storage.Api.csproj,                        assembly: Edp.Storage.Api }
+  - { key: notification,      project: Services/Notification/Edp.Notification.Api/Edp.Notification.Api.csproj,          assembly: Edp.Notification.Api }
+  - { key: audit,             project: Services/Audit/Edp.Audit.Api/Edp.Audit.Api.csproj,                              assembly: Edp.Audit.Api }
+  - { key: digital-signature, project: Services/DigitalSignature/Edp.DigitalSignature.Api/Edp.DigitalSignature.Api.csproj, assembly: Edp.DigitalSignature.Api }
+
+stages:
+- stage: Deploy_${{ parameters.environmentName }}
+  displayName: Deploy ${{ parameters.environmentName }}
+  dependsOn: ${{ parameters.dependsOn }}
+  condition: ${{ parameters.condition }}
+  variables:
+  - template: ${{ parameters.variablesFile }}
+  jobs:
+
+  # 1. Infrastructure (Bicep). Production pauses here until the "edp-prod" Environment approval is granted.
+  - deployment: Infrastructure
+    displayName: Provision infrastructure
+    environment: edp-${{ parameters.environmentName }}
+    pool:
+      vmImage: $(vmImage)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: Create resource group
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: az group create --name "$(resourceGroupName)" --location "$(azureLocation)" --output none
+
+          - ${{ if eq(parameters.runWhatIf, true) }}:
+            - task: AzureCLI@2
+              displayName: What-if (preview of infrastructure changes)
+              continueOnError: true
+              env:
+                SQL_ADMIN_PASSWORD: $(SQL_ADMIN_PASSWORD)
+                ENTRA_TENANT_ID: $(ENTRA_TENANT_ID)
+                ENTRA_CLIENT_ID: $(ENTRA_CLIENT_ID)
+                ENTRA_CLIENT_SECRET: $(ENTRA_CLIENT_SECRET)
+                WEB_PUBLIC_URL: $(WEB_PUBLIC_URL)
+                AZURE_LOCATION: $(azureLocation)
+                IMAGE_TAG: latest
+              inputs:
+                azureSubscription: $(azureServiceConnection)
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  # Undefined pipeline variables arrive as the literal text "$(NAME)"; treat them as empty.
+                  for v in ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET WEB_PUBLIC_URL; do case "${!v}" in '$('*) export "$v=";; esac; done
+                  az deployment group what-if --resource-group "$(resourceGroupName)" \
+                    --parameters "$(bicepParameterFile)" --no-pretty-print --result-format ResourceIdOnly
+
+          - task: AzureCLI@2
+            displayName: Deploy infrastructure (Bicep)
+            env:
+              SQL_ADMIN_PASSWORD: $(SQL_ADMIN_PASSWORD)
+              ENTRA_TENANT_ID: $(ENTRA_TENANT_ID)
+              ENTRA_CLIENT_ID: $(ENTRA_CLIENT_ID)
+              ENTRA_CLIENT_SECRET: $(ENTRA_CLIENT_SECRET)
+              WEB_PUBLIC_URL: $(WEB_PUBLIC_URL)
+              AZURE_LOCATION: $(azureLocation)
+              IMAGE_TAG: latest
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                # Undefined pipeline variables arrive as the literal text "$(NAME)"; treat them as empty.
+                for v in ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET WEB_PUBLIC_URL; do case "${!v}" in '$('*) export "$v=";; esac; done
+                az deployment group create --name "edp-$(Build.BuildId)" --resource-group "$(resourceGroupName)" \
+                  --parameters "$(bicepParameterFile)" \
+                  --query "properties.outputs.{web:webUrl.value,gateway:gatewayUrl.value,redirect:entraRedirectUri.value,signedOut:entraSignedOutRedirectUri.value}" -o yaml
+
+  # 2. Images: one parallel job per service plus the web app, pushed to this environment's registry.
+  - ${{ if eq(parameters.skipImageBuild, false) }}:
+    - job: Images
+      displayName: Build and push images
+      dependsOn: Infrastructure
+      pool:
+        vmImage: $(vmImage)
+      strategy:
+        maxParallel: 4
+        matrix:
+          ${{ each image in parameters.images }}:
+            ${{ replace(image.key, '-', '_') }}:
+              serviceKey: ${{ image.key }}
+              project: ${{ image.project }}
+              assembly: ${{ image.assembly }}
+          web:
+            serviceKey: web
+            project: none
+            assembly: none
+      steps:
+      - checkout: self
+      - task: AzureCLI@2
+        displayName: Build and push $(serviceKey)
+        inputs:
+          azureSubscription: $(azureServiceConnection)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            chmod +x scripts/deploy/*.sh
+            scripts/deploy/build-push.sh "$(resourceGroupName)" "$(serviceKey)" "${{ parameters.releaseTag }}" "$(environmentName)" "$(project)" "$(assembly)"
+
+  # 3. Release: database migration, roll the apps to the tag, wait for health, smoke test.
+  - job: Release
+    displayName: Migrate, release and verify
+    dependsOn:
+    - Infrastructure
+    - ${{ if eq(parameters.skipImageBuild, false) }}:
+      - Images
+    pool:
+      vmImage: $(vmImage)
+    steps:
+    - checkout: self
+    - task: UseDotNet@2
+      displayName: Install .NET SDK
+      inputs:
+        packageType: sdk
+        useGlobalJson: true
+
+    - task: AzureCLI@2
+      displayName: Apply database migrations
+      env:
+        SQL_ADMIN_PASSWORD: $(SQL_ADMIN_PASSWORD)
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: pwsh
+        scriptLocation: inlineScript
+        inlineScript: |
+          $ErrorActionPreference = 'Stop'
+          $rg = '$(resourceGroupName)'
+          $server = az sql server list --resource-group $rg --query '[0]' | ConvertFrom-Json
+          if (-not $server) { throw "No SQL server found in $rg." }
+          # The agent's public IP is allowed only for the duration of the migration.
+          $ip = (Invoke-RestMethod -Uri 'https://api.ipify.org').Trim()
+          $rule = "pipeline-$(Build.BuildId)"
+          az sql server firewall-rule create --resource-group $rg --server $server.name --name $rule --start-ip-address $ip --end-ip-address $ip --output none
+          try {
+            dotnet tool install --global dotnet-ef
+            $env:PATH = "$env:PATH$([IO.Path]::PathSeparator)$HOME/.dotnet/tools"
+            $connection = "Server=tcp:$($server.fullyQualifiedDomainName),1433;Initial Catalog=EdpDb;User ID=$($server.administratorLogin);Password=$env:SQL_ADMIN_PASSWORD;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60"
+            ./scripts/database/Apply-EdpMigrations.ps1 -ConnectionString $connection
+          }
+          finally {
+            az sql server firewall-rule delete --resource-group $rg --server $server.name --name $rule --yes --output none
+          }
+
+    - task: AzureCLI@2
+      displayName: Roll out tag ${{ parameters.releaseTag }} and wait for health
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          chmod +x scripts/deploy/*.sh
+          scripts/deploy/release.sh "$(resourceGroupName)" "${{ parameters.releaseTag }}"
+
+    - task: AzureCLI@2
+      displayName: Smoke test
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          WEB_HOST=$(az webapp list --resource-group "$(resourceGroupName)" --query "[?tags.\"edp-service\"=='web'].defaultHostName | [0]" -o tsv)
+          pwsh -NoProfile -File scripts/Smoke-Test.ps1 -BaseUrl "https://$WEB_HOST"

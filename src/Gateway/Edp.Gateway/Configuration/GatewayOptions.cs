@@ -10,6 +10,9 @@ public sealed class GatewayOptions
 
     public string FrontendBaseUrl { get; init; } = "http://localhost:5173";
 
+    /// <summary>Public origin users reach the app on (the web host that proxies to this Gateway). Used for OIDC redirect URIs.</summary>
+    public string PublicBaseUrl { get; init; } = string.Empty;
+
     public CorrelationOptions Correlation { get; init; } = new();
 
     public RateLimitOptions RateLimiting { get; init; } = new();
@@ -19,6 +22,39 @@ public sealed class GatewayOptions
     public EntraIdOptions EntraId { get; init; } = new();
 
     public ServiceCommunicationOptions ServiceCommunication { get; init; } = new();
+
+    public DevAuthOptions DevAuth { get; init; } = new();
+}
+
+/// <summary>Local-demo sign-in that replaces Entra ID. Refused outside the Development environment.</summary>
+public sealed class DevAuthOptions
+{
+    public bool Enabled { get; init; }
+
+    /// <summary>HS256 key shared with the backend services (Jwt:Key). At least 32 characters.</summary>
+    public string SigningKey { get; init; } = string.Empty;
+
+    public string Issuer { get; init; } = "edp-local";
+
+    public string Audience { get; init; } = "edp-api";
+
+    public int TokenLifetimeMinutes { get; init; } = 480;
+
+    public List<DevUserOptions> Users { get; init; } = [];
+}
+
+public sealed class DevUserOptions
+{
+    public Guid Id { get; init; }
+
+    public string DisplayName { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>Role/permission values placed in the token's <c>roles</c> claim, as Entra app roles would be.</summary>
+    public string[] Roles { get; init; } = [];
 }
 
 public sealed class CorrelationOptions

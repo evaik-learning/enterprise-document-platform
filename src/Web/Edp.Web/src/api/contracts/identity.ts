@@ -16,6 +16,20 @@ export interface SessionInfo {
   userName?: string | null;
 }
 
+export interface DevUserSummary {
+  id: string;
+  displayName: string;
+  email: string;
+  description: string;
+}
+
+/** Sign-in options exposed by the Gateway; demo users are only ever listed in local development. */
+export interface AuthConfig {
+  devAuthEnabled: boolean;
+  entraConfigured: boolean;
+  devUsers: DevUserSummary[];
+}
+
 export interface OrganizationMembership {
   id: string;
   name: string;

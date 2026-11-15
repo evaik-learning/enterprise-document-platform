@@ -56,13 +56,17 @@ public sealed class OrganizationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<global::Edp.Organization.Domain.Entities.Organization>>> GetAll(CancellationToken cancellationToken)
     {
-        var organizations = await _organizationService.GetAllAsync(cancellationToken);
+        // Only organizations the caller belongs to; listing every tenant would leak other customers' names.
+        var organizations = await _organizationService.GetForUserAsync(_currentUser.UserId, cancellationToken);
         return Ok(organizations);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<global::Edp.Organization.Domain.Entities.Organization>> GetById(Guid id, CancellationToken cancellationToken)
     {
+        var memberships = await _organizationService.GetMembershipsForUserAsync(_currentUser.UserId, cancellationToken);
+        if (memberships.All(membership => membership.Id != id))
+            return NotFound();
         var organization = await _organizationService.GetByIdAsync(id, cancellationToken);
         return organization is null ? NotFound() : Ok(organization);
     }
@@ -75,7 +79,7 @@ public sealed class OrganizationsController : ControllerBase
             return BadRequest("Name is required.");
         }
 
-        var organization = await _organizationService.CreateAsync(command, cancellationToken);
+        var organization = await _organizationService.CreateAsync(command, _currentUser.UserId, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = organization.Id }, organization);
     }
 }

@@ -85,7 +85,8 @@ public static class SharedInfrastructureServiceCollectionExtensions
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = !string.IsNullOrWhiteSpace(jwtOptions.Key),
                 NameClaimType = "name",
-                RoleClaimType = ClaimTypes.Role,
+                // Entra ID emits app roles in the "roles" claim and inbound claim mapping is disabled below.
+                RoleClaimType = "roles",
                 ClockSkew = TimeSpan.FromMinutes(2),
                 RequireSignedTokens = !string.IsNullOrWhiteSpace(jwtOptions.Key) || !string.IsNullOrWhiteSpace(jwtOptions.Authority),
                 ValidateActor = false

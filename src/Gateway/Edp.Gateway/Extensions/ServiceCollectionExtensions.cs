@@ -52,6 +52,9 @@ public static class ServiceCollectionExtensions
         var gatewayOptions = new GatewayOptions();
         configuration.GetSection(GatewayOptions.SectionName).Bind(gatewayOptions);
         var entraIdOptions = gatewayOptions.EntraId;
+        if (gatewayOptions.DevAuth.Enabled && gatewayOptions.DevAuth.SigningKey.Length < 32)
+            throw new InvalidOperationException("Gateway:DevAuth:SigningKey must be at least 32 characters when DevAuth is enabled.");
+        services.AddSingleton<DevTokenService>();
         var hasValidOidcConfig = !string.IsNullOrWhiteSpace(entraIdOptions.TenantId)
             && !string.IsNullOrWhiteSpace(entraIdOptions.ClientId)
             && !string.IsNullOrWhiteSpace(entraIdOptions.ClientSecret);
@@ -99,8 +102,19 @@ public static class ServiceCollectionExtensions
                         // XHR callers need a 401 they can act on, not a redirect to the identity provider.
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         context.HandleResponse();
+                        return Task.CompletedTask;
                     }
 
+                    // Behind the web host's reverse proxy the Gateway's own host is not what the user (or Entra) sees.
+                    if (!string.IsNullOrWhiteSpace(gatewayOptions.PublicBaseUrl))
+                        context.ProtocolMessage.RedirectUri = $"{gatewayOptions.PublicBaseUrl.TrimEnd('/')}{entraIdOptions.CallbackPath}";
+
+                    return Task.CompletedTask;
+                };
+                options.Events.OnRedirectToIdentityProviderForSignOut = context =>
+                {
+                    if (!string.IsNullOrWhiteSpace(gatewayOptions.PublicBaseUrl))
+                        context.ProtocolMessage.PostLogoutRedirectUri = $"{gatewayOptions.PublicBaseUrl.TrimEnd('/')}{entraIdOptions.SignedOutCallbackPath}";
                     return Task.CompletedTask;
                 };
 

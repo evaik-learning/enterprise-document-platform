@@ -4,6 +4,7 @@ import {
   type AppNotification,
   type AuditFilters,
   type AuditLog,
+  type AuthConfig,
   type DashboardData,
   type Me,
   type NotificationPreferences,
@@ -17,6 +18,7 @@ import {
 
 export const sessionApi = {
   session: () => gatewayClient.get<SessionInfo>('/bff/auth/user', { skipSessionRenewal: true, retries: 0 }),
+  authConfig: () => gatewayClient.get<AuthConfig>('/bff/auth/config', { skipSessionRenewal: true }),
   me: () => gatewayClient.get<Me>('/api/v1/me', { skipSessionRenewal: true })
 };
 
@@ -52,6 +54,8 @@ export const auditApi = {
 
 export const organizationApi = {
   mine: () => gatewayClient.get<OrganizationMembership[]>('/bff/organizations'),
+  /** The creator becomes the organization's Owner. */
+  create: (body: { name: string; description?: string }) => gatewayClient.post<{ id: string; name: string }>('/api/v1/organizations', body),
   select: (id: string) => gatewayClient.post<{ organizationId: string }>(`/bff/organizations/${id}/select`),
   members: (id: string) => gatewayClient.get<OrganizationMember[]>(`/api/v1/organizations/${id}/members`),
   addMember: (id: string, userId: string, role: string) => gatewayClient.post<OrganizationMember>(`/api/v1/organizations/${id}/members`, { userId, role }),

@@ -1,0 +1,7 @@
+variables:
+  dotnetSdkVersion: '10.x'
+  nodeVersion: '22.x'
+  solution: 'EnterpriseDocumentPlatform.sln'
+  webAppProject: 'src/Web/Edp.Web'
+  buildConfiguration: 'Release'
+  vmImage: 'ubuntu-latest'

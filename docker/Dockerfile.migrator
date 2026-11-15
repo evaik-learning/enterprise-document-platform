@@ -1,0 +1,11 @@
+# One-shot job that applies the EdpDb (shared) EF Core migrations. Build from the repository root.
+ARG DOTNET_VERSION=10.0
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}
+WORKDIR /src
+ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN dotnet tool install --global dotnet-ef
+COPY global.json Directory.Build.props Directory.Build.targets Directory.Packages.props ./
+COPY src ./src
+RUN dotnet build src/Shared/Edp.Persistence/Edp.Persistence.csproj -c Release
+# EdpDb_Connection is read by the design-time context factory.
+ENTRYPOINT ["dotnet", "ef", "database", "update", "--no-build", "--configuration", "Release", "--project", "src/Shared/Edp.Persistence/Edp.Persistence.csproj", "--context", "Edp.Persistence.EdpDbContext"]

@@ -1,11 +1,17 @@
+# DEV environment settings (non-secret). Secrets live in the Azure DevOps variable group "edp-dev".
+# Edit the values here to rename resources, change the region or use another subscription/service connection.
+#
+# Variable group "edp-dev" must define (mark secrets as secret):
+#   SQL_ADMIN_PASSWORD (secret), ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET (secret), WEB_PUBLIC_URL (optional)
 variables:
-  environmentName: 'dev'
-  location: 'eastus'
-  resourceGroupName: 'rg-edp-platform-dev'
-  appNamePrefix: 'edp'
-  acrSku: 'Basic'
-  appServiceSku: 'B1'
-  sqlAdministratorLogin: 'sqladmin'
-  sqlAdministratorPassword: '$(sqlAdminPassword)'
-  frontEndArtifactDirectory: 'src/Web/Edp.Web/dist'
-  azureSubscription: 'AzureServiceConnection'
+- name: environmentName
+  value: dev                               # Azure DevOps Environment used for the deployment: edp-dev
+- name: azureServiceConnection
+  value: sc-edp-dev                        # Azure Resource Manager service connection for the DEV subscription
+- name: resourceGroupName
+  value: rg-edp-dev
+- name: azureLocation
+  value: eastus
+- name: bicepParameterFile
+  value: infra/dev.bicepparam
+- group: edp-dev

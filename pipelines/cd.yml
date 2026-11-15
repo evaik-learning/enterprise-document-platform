@@ -1,35 +1,50 @@
+# Continuous delivery.
+#   develop -> build/test -> deploy DEV
+#   main    -> build/test -> deploy DEV -> (approval on Environment "edp-prod") -> deploy PROD
+# Manual run: choose which environments to deploy, or roll back by giving an existing image tag.
 trigger:
   branches:
     include:
+      - develop
       - main
 
-pr:
-  branches:
-    include:
-      - main
+pr: none
+
+parameters:
+- name: deployDev
+  displayName: Deploy DEV
+  type: boolean
+  default: true
+- name: deployProd
+  displayName: Deploy PROD (main branch only; needs approval)
+  type: boolean
+  default: true
+- name: rollbackTag
+  displayName: Roll back to this existing image tag (leave empty for a normal release)
+  type: string
+  default: ''
 
 variables:
-- template: variables/prod.yml
-- name: dotnetSdkVersion
-  value: '10.x'
-- name: nodeVersion
-  value: '22.x'
-- name: solution
-  value: 'EnterpriseDocumentPlatform.sln'
-- name: webAppProject
-  value: 'src/Web/Edp.Web'
-- name: buildConfiguration
-  value: 'Release'
+- template: variables/common.yml
 
 stages:
 - template: templates/build-and-test.yml
-- template: templates/deploy-azure.yml
+
+- template: templates/deploy-environment.yml
   parameters:
-    environmentName: 'prod'
-    parameterFile: 'infra/prod.bicepparam'
-    serviceConnection: 'AzureServiceConnection'
-    resourceGroupName: 'rg-edp-platform-prod'
-    location: 'eastus2'
-    webAppArtifactPath: '$(Pipeline.Workspace)/frontend-dist'
-    backendImageName: 'edp-gateway'
-    containerRegistry: 'edpacrprod'
+    environmentName: dev
+    variablesFile: /pipelines/variables/dev.yml
+    dependsOn: [Build]
+    condition: and(succeeded(), eq('${{ parameters.deployDev }}', 'true'))
+    releaseTag: ${{ iif(eq(parameters.rollbackTag, ''), '$(Build.BuildId)', parameters.rollbackTag) }}
+    skipImageBuild: ${{ ne(parameters.rollbackTag, '') }}
+
+- template: templates/deploy-environment.yml
+  parameters:
+    environmentName: prod
+    variablesFile: /pipelines/variables/prod.yml
+    dependsOn: [Build, Deploy_dev]
+    # Runs when DEV succeeded or was intentionally skipped; only ever from main.
+    condition: and(succeeded('Build'), in(dependencies.Deploy_dev.result, 'Succeeded', 'Skipped'), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq('${{ parameters.deployProd }}', 'true'))
+    releaseTag: ${{ iif(eq(parameters.rollbackTag, ''), '$(Build.BuildId)', parameters.rollbackTag) }}
+    skipImageBuild: ${{ ne(parameters.rollbackTag, '') }}

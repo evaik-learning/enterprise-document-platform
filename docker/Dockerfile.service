@@ -1,0 +1,24 @@
+# One Dockerfile for every ASP.NET Core service and the Gateway. Build from the repository root:
+#   docker build -f docker/Dockerfile.service \
+#     --build-arg PROJECT=Services/Template/Edp.Template.Api/Edp.Template.Api.csproj \
+#     --build-arg ASSEMBLY=Edp.Template.Api -t edp-template .
+ARG DOTNET_VERSION=10.0
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
+ARG PROJECT
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY global.json Directory.Build.props Directory.Build.targets Directory.Packages.props ./
+COPY src ./src
+RUN dotnet publish "src/${PROJECT}" -c "${BUILD_CONFIGURATION}" -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS final
+ARG ASSEMBLY
+ENV ASSEMBLY=${ASSEMBLY} \
+    ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+WORKDIR /app
+COPY --from=build /app/publish .
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["sh", "-c", "exec dotnet ${ASSEMBLY}.dll"]

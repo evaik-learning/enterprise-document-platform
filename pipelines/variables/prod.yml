@@ -1,11 +1,16 @@
+# PROD environment settings (non-secret). Secrets live in the Azure DevOps variable group "edp-prod".
+#
+# Variable group "edp-prod" must define (mark secrets as secret):
+#   SQL_ADMIN_PASSWORD (secret), ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET (secret), WEB_PUBLIC_URL (optional)
 variables:
-  environmentName: 'prod'
-  location: 'eastus2'
-  resourceGroupName: 'rg-edp-platform-prod'
-  appNamePrefix: 'edp'
-  acrSku: 'Basic'
-  appServiceSku: 'P1v3'
-  sqlAdministratorLogin: 'sqladmin'
-  sqlAdministratorPassword: '$(sqlAdminPassword)'
-  frontEndArtifactDirectory: 'src/Web/Edp.Web/dist'
-  azureSubscription: 'AzureServiceConnection'
+- name: environmentName
+  value: prod                              # Azure DevOps Environment: edp-prod (add an approval check to it)
+- name: azureServiceConnection
+  value: sc-edp-prod                       # service connection for the PROD subscription (may be the same as DEV)
+- name: resourceGroupName
+  value: rg-edp-prod
+- name: azureLocation
+  value: eastus2
+- name: bicepParameterFile
+  value: infra/prod.bicepparam
+- group: edp-prod

@@ -20,6 +20,13 @@ builder.Services.AddGatewayObservability();
 
 var app = builder.Build();
 
+if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Edp.Gateway.Configuration.GatewayOptions>>().Value.DevAuth.Enabled)
+{
+    if (!app.Environment.IsDevelopment())
+        throw new InvalidOperationException("Gateway:DevAuth is a local-only sign-in and must not be enabled outside the Development environment.");
+    app.Logger.LogWarning("Gateway DevAuth is ENABLED: demo users can sign in without Entra ID. Local development only.");
+}
+
 app.UseSharedPlatformMiddleware();
 app.UseGatewayPlatformMiddleware();
 
